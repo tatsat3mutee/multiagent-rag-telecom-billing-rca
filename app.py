@@ -21,52 +21,71 @@ st.markdown("""
     /* Hide default Streamlit auto-generated sidebar nav */
     [data-testid="stSidebarNav"] { display: none !important; }
 
+    /* Global font size boost */
+    .main .block-container { font-size: 1.05rem; }
+    h3 { font-size: 1.5rem !important; }
+
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
+        padding: 2.5rem;
         border-radius: 12px;
         color: white;
         margin-bottom: 2rem;
     }
-    .main-header h1 { color: white; margin: 0; font-size: 2rem; }
-    .main-header p { color: #e0e0e0; margin: 0.5rem 0 0 0; font-size: 1.1rem; }
+    .main-header h1 { color: white !important; margin: 0; font-size: 2.4rem; }
+    .main-header p { color: #e0e0e0 !important; margin: 0.5rem 0 0 0; font-size: 1.2rem; }
     .agent-card {
-        background: #f8f9fa;
+        background: #1e1e2f;
         border-radius: 12px;
         padding: 1.5rem;
         border-left: 4px solid;
-        height: 100%;
+        min-height: 170px;
+        color: #e0e0e0;
     }
-    .agent-card h4 { margin-top: 0; }
+    .agent-card h4 { margin-top: 0; color: #ffffff !important; font-size: 1.25rem; }
+    .agent-card p { color: #c0c0c0 !important; font-size: 1.05rem; line-height: 1.6; margin-bottom: 0; }
+    /* Make Streamlit columns equal height */
+    div[data-testid="stHorizontalBlock"] { align-items: stretch !important; }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div { height: 100%; }
     .investigator { border-left-color: #667eea; }
     .reasoner { border-left-color: #f7971e; }
     .reporter { border-left-color: #56ab2f; }
-    .stat-card {
-        background: white;
+    .step-row {
+        display: flex;
+        align-items: center;
+        background: #1e1e2f;
+        border: 1px solid #333;
         border-radius: 10px;
-        padding: 1.2rem;
-        text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
     }
-    .stat-card .number { font-size: 2rem; font-weight: 700; color: #667eea; }
-    .stat-card .label { font-size: 0.85rem; color: #888; }
     .step-badge {
-        display: inline-block;
+        flex-shrink: 0;
         background: #667eea;
         color: white;
-        width: 28px; height: 28px;
+        width: 40px; height: 40px;
         border-radius: 50%;
         text-align: center;
-        line-height: 28px;
-        font-weight: bold;
-        margin-right: 8px;
+        line-height: 40px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-right: 1rem;
     }
+    .step-text {
+        color: #e0e0e0;
+        font-size: 1.05rem;
+        line-height: 1.5;
+    }
+    .step-text strong { color: #ffffff; }
+    /* Fix metric cards for dark mode */
     div[data-testid="stMetric"] {
-        background: #f8f9fa;
+        background: #1e1e2f;
+        border: 1px solid #333;
         border-radius: 10px;
         padding: 12px 16px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
+    div[data-testid="stMetric"] label { color: #a0a0b0 !important; font-size: 0.95rem !important; }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 1.6rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,7 +117,7 @@ with col1:
     st.markdown("""
     <div class="agent-card investigator">
         <h4>🔍 Investigator Agent</h4>
-        <p>Queries the knowledge base to retrieve relevant SLA documents, RCA playbooks, and incident reports for the anomaly.</p>
+        <p>Queries the RAG knowledge base to retrieve relevant SLA documents, RCA playbooks, and historical incident reports.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -114,7 +133,7 @@ with col3:
     st.markdown("""
     <div class="agent-card reporter">
         <h4>📋 Reporter Agent</h4>
-        <p>Produces validated RCA reports with corrective actions, severity assessment, and confidence scoring.</p>
+        <p>Produces JSON-validated RCA reports with corrective actions, severity assessment, and confidence scoring per anomaly.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -166,9 +185,18 @@ st.markdown("---")
 # ── Getting Started ──
 st.markdown("### Getting Started")
 st.markdown("""
-<span class="step-badge">1</span> Go to **Upload & Detect** → load billing data and run anomaly detection  
-<span class="step-badge">2</span> Go to **RCA Viewer** → select any anomaly → generate an AI-powered root cause report  
-<span class="step-badge">3</span> Browse the **Knowledge Base** to explore indexed telecom domain documents
+<div class="step-row">
+    <div class="step-badge">1</div>
+    <div class="step-text">Go to <strong>Upload & Detect</strong> — load the IBM Telco billing dataset and run anomaly detection</div>
+</div>
+<div class="step-row">
+    <div class="step-badge">2</div>
+    <div class="step-text">Go to <strong>RCA Viewer</strong> — select any detected anomaly and generate an AI-powered root cause report</div>
+</div>
+<div class="step-row">
+    <div class="step-badge">3</div>
+    <div class="step-text">Browse the <strong>Knowledge Base</strong> — explore indexed telecom domain documents used by the RAG pipeline</div>
+</div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")

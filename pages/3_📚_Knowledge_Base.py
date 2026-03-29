@@ -14,21 +14,25 @@ st.set_page_config(page_title="Knowledge Base", page_icon="📚", layout="wide")
 st.markdown("""
 <style>
     [data-testid="stSidebarNav"] { display: none !important; }
+    .main .block-container { font-size: 1.05rem; }
+    h3 { font-size: 1.5rem !important; }
     .page-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem 2rem;
+        padding: 2rem 2.5rem;
         border-radius: 12px;
         color: white;
         margin-bottom: 1.5rem;
     }
-    .page-header h2 { color: white; margin: 0; }
-    .page-header p { color: #e0e0e0; margin: 0.3rem 0 0 0; }
+    .page-header h2 { color: white !important; margin: 0; font-size: 1.8rem; }
+    .page-header p { color: #e0e0e0 !important; margin: 0.3rem 0 0 0; font-size: 1.1rem; }
     div[data-testid="stMetric"] {
-        background: #f8f9fa;
+        background: #1e1e2f;
+        border: 1px solid #333;
         border-radius: 10px;
         padding: 12px 16px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
+    div[data-testid="stMetric"] label { color: #a0a0b0 !important; font-size: 0.95rem !important; }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] { color: #ffffff !important; font-size: 1.6rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
