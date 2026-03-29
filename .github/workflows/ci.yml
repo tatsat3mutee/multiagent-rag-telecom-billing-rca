@@ -1,0 +1,64 @@
+name: CI — Test & Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest
+
+      - name: Lint with Ruff
+        run: ruff check . --select E,F,W --ignore E501
+
+      - name: Check no stale Ollama references
+        run: |
+          ! grep -rn "OLLAMA_BASE_URL\|ChatOllama\|langchain_ollama\|localhost:11434" \
+            --include="*.py" . && echo "PASS: No stale Ollama refs"
+
+      - name: Verify config uses Groq
+        run: python -c "from config import GROQ_API_KEY, LLM_MODEL; assert LLM_MODEL == 'llama-3.3-70b-versatile', f'Bad model: {LLM_MODEL}'; print('PASS: Config OK')"
+
+      - name: Test imports
+        run: |
+          python -c "from src.data.loader import load_ibm_telco; print('PASS: loader')"
+          python -c "from src.data.anomaly_injector import create_labeled_dataset; print('PASS: injector')"
+          python -c "from src.detection.detector import BillingAnomalyDetector; print('PASS: detector')"
+          python -c "from src.rag.knowledge_base import KnowledgeBase; print('PASS: knowledge_base')"
+          python -c "from src.agents.graph import build_graph; print('PASS: graph')"
+          python -c "from src.evaluation.metrics import compute_rouge_l; print('PASS: metrics')"
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t ragml:test .
+
+      - name: Verify container starts
+        run: |
+          docker run -d --name ragml-test -p 8501:8501 \
+            -e GROQ_API_KEY=test_key ragml:test
+          sleep 10
+          curl -f http://localhost:8501/_stcore/health || exit 1
+          docker stop ragml-test
