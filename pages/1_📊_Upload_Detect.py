@@ -49,26 +49,32 @@ st.markdown("""
 # ── Data Loading ──
 df = None
 labeled_path = PROCESSED_DATA_DIR / "anomalies_labeled.csv"
+augmented_path = RAW_DATA_DIR / "ibm_telco_augmented.csv"
 raw_path = RAW_DATA_DIR / "ibm_telco_churn.csv"
 
 if labeled_path.exists():
     df = pd.read_csv(labeled_path)
     st.success(f"✅ Loaded **{len(df):,}** records from labeled dataset.")
+elif augmented_path.exists():
+    df = pd.read_csv(augmented_path)
+    st.info(f"Loaded {len(df):,} augmented records. Run anomaly injection below to create labeled data.")
 elif raw_path.exists():
     df = pd.read_csv(raw_path)
     st.info(f"Loaded {len(df):,} raw records. Run anomaly injection below to create labeled data.")
 else:
     st.markdown("""
     <div class="info-box">
-        <strong>No dataset found.</strong> Click below to download the IBM Telco Churn dataset (7,043 billing records).
+        <strong>No dataset found.</strong> Click below to download the IBM Telco dataset and augment to ~35K records.
     </div>
     """, unsafe_allow_html=True)
-    if st.button("⬇️  Download Dataset", type="primary"):
-        with st.spinner("Downloading IBM Telco dataset..."):
+    if st.button("⬇️  Download & Augment Dataset", type="primary"):
+        with st.spinner("Downloading IBM Telco dataset and augmenting to ~35K records..."):
             from scripts.download_datasets import download_ibm_telco, download_maven_telecom
             download_ibm_telco()
             download_maven_telecom()
-            st.success("Dataset downloaded! Refreshing...")
+            from src.data.augmentor import augment_and_save
+            augment_and_save()
+            st.success("Dataset downloaded and augmented! Refreshing...")
             st.rerun()
 
 if df is not None:

@@ -307,22 +307,23 @@ Documents (.md playbooks)
 ### Step-by-Step Pipeline Execution (`run_pipeline.py`)
 
 ```
-STEP 1: Generate Datasets
+STEP 1: Generate & Augment Datasets
 ├── download_ibm_telco() → 7,043 records → data/raw/ibm_telco_churn.csv
-└── download_maven_telecom() → 6,500 records → data/raw/maven_telecom_churn.csv
+├── download_maven_telecom() → 6,500 records → data/raw/maven_telecom_churn.csv
+└── augment_and_save() → ROSE-style oversampling → 35,000 records → data/raw/ibm_telco_augmented.csv
 
 STEP 2: Inject Anomalies
-├── load_ibm_telco() → clean DataFrame
+├── load augmented dataset (35,000 records)
 ├── inject_all_anomalies() → adds is_anomaly + anomaly_type columns
-│   ├── zero_billing: 211 records (3%)
-│   ├── duplicate_charge: 140 records (2%) [adds new rows]
-│   ├── usage_spike: 215 records (3%)
-│   ├── cdr_failure: 107 records (1.5%)
-│   └── sla_breach: 143 records (2%)
-└── Save → data/processed/anomalies_labeled.csv (7,183 records, 816 anomalies)
+│   ├── zero_billing: ~1,050 records (3%)
+│   ├── duplicate_charge: ~700 records (2%) [adds new rows]
+│   ├── usage_spike: ~1,071 records (3%)
+│   ├── cdr_failure: ~535 records (1.5%)
+│   └── sla_breach: ~714 records (2%)
+└── Save → data/processed/anomalies_labeled.csv (~35,700 records, ~4,070 anomalies)
 
 STEP 3: Train Detectors
-├── IsolationForest → F1=0.586, ROC-AUC=0.877
+├── IsolationForest → F1=0.666, ROC-AUC=0.916
 ├── DBSCAN → F1=0.036 (poor — as expected, used for comparison)
 ├── Save models → models/*.joblib
 └── Log to MLflow
@@ -402,7 +403,7 @@ STEP 6: Evaluate
 | # | Component | Status | Notes |
 |---|-----------|--------|-------|
 | 1 | Project scaffolding | ✅ Complete | config.py, requirements.txt, folder structure |
-| 2 | Dataset generation | ✅ Complete | IBM Telco (7,043) + Maven (6,500) synthetic |
+| 2 | Dataset generation | ✅ Complete | IBM Telco (7,043 raw → 35,000 augmented) + Maven (6,500) synthetic |
 | 3 | Anomaly injection (5 types) | ✅ Complete | Seed-controlled, reproducible |
 | 4 | IsolationForest detector | ✅ Complete | F1=0.586, ROC-AUC=0.877 |
 | 5 | DBSCAN detector | ✅ Complete | Baseline comparison |

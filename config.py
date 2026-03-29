@@ -69,6 +69,7 @@ ABLATION_CONFIGS = {
 
 # ── Anomaly Detection ──
 RANDOM_SEED = 42
+AUGMENTED_TARGET_SIZE = 35_000  # Augmented dataset size (ROSE-style oversampling)
 ANOMALY_RATIOS = {
     "zero_billing": 0.03,
     "duplicate_charge": 0.02,

@@ -95,4 +95,9 @@ def download_maven_telecom():
 if __name__ == "__main__":
     download_ibm_telco()
     download_maven_telecom()
+
+    # Augment IBM Telco to ~35K records
+    from src.data.augmentor import augment_and_save
+    augment_and_save(target_size=35_000)
+
     print("\nAll datasets ready!")

@@ -218,7 +218,7 @@ with tab2:
         | **UI** | Streamlit |
         | **Evaluation** | BERTScore, ROUGE-L |
         | **Stats** | Wilcoxon signed-rank |
-        | **Data** | IBM Telco (7,043 records) |
+        | **Data** | IBM Telco (35K augmented) |
         """)
 
 with tab3:
