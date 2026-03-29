@@ -15,10 +15,61 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Custom CSS ──
+st.markdown("""
+<style>
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 2rem;
+    }
+    .main-header h1 { color: white; margin: 0; font-size: 2rem; }
+    .main-header p { color: #e0e0e0; margin: 0.5rem 0 0 0; font-size: 1.1rem; }
+    .agent-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid;
+        height: 100%;
+    }
+    .agent-card h4 { margin-top: 0; }
+    .investigator { border-left-color: #667eea; }
+    .reasoner { border-left-color: #f7971e; }
+    .reporter { border-left-color: #56ab2f; }
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.2rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .stat-card .number { font-size: 2rem; font-weight: 700; color: #667eea; }
+    .stat-card .label { font-size: 0.85rem; color: #888; }
+    .step-badge {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 28px;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+    div[data-testid="stMetric"] {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 12px 16px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ── Sidebar ──
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/signal-tower.png", width=80)
-    st.title("Telecom RCA")
+    st.markdown("## 📡 Telecom RCA")
     st.markdown("---")
     st.markdown("""
     **Multi-Agent RAG System**  
@@ -26,56 +77,55 @@ with st.sidebar:
     for Billing Anomalies
     """)
     st.markdown("---")
-    st.markdown("### Navigation")
+    st.markdown("#### Pages")
     st.markdown("""
-    - 📊 **Upload & Detect** — Upload billing CSV
-    - 🔍 **RCA Viewer** — Generate RCA reports
-    - 📚 **Knowledge Base** — Browse RAG corpus
+    📊 **Upload & Detect** — Analyze billing data  
+    🔍 **RCA Viewer** — Generate RCA reports  
+    📚 **Knowledge Base** — Browse RAG corpus
     """)
     st.markdown("---")
-    st.caption("MTech Thesis — Tatsat Pandey")
+    st.caption("MTech Thesis — Tatsat Pandey | 2026")
 
-# ── Main Page ──
-st.title("📡 Multi-Agent RAG System for Telecom Billing RCA")
-st.markdown("### Autonomous Root Cause Analysis of Billing Anomalies in Telecom Networks")
+# ── Hero Section ──
+st.markdown("""
+<div class="main-header">
+    <h1>📡 Multi-Agent RAG System</h1>
+    <p>Autonomous Root Cause Analysis of Billing Anomalies in Telecom Networks</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.markdown("---")
-
-# System Architecture
+# ── Agent Pipeline Cards ──
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("#### 🔍 Investigator Agent")
     st.markdown("""
-    Receives anomaly context and queries the 
-    RAG knowledge base to retrieve relevant 
-    SLA documents, RCA playbooks, and 
-    incident reports.
-    """)
+    <div class="agent-card investigator">
+        <h4>🔍 Investigator Agent</h4>
+        <p>Queries the knowledge base to retrieve relevant SLA documents, RCA playbooks, and incident reports for the anomaly.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col2:
-    st.markdown("#### 🧠 Reasoning Agent")
     st.markdown("""
-    Synthesizes anomaly data with retrieved 
-    documentation to generate structured 
-    root cause hypotheses with evidence.
-    """)
+    <div class="agent-card reasoner">
+        <h4>🧠 Reasoning Agent</h4>
+        <p>Synthesizes anomaly data with retrieved context to generate structured root cause hypotheses with evidence chains.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col3:
-    st.markdown("#### 📋 Reporter Agent")
     st.markdown("""
-    Produces JSON-schema-validated RCA 
-    reports with recommended corrective 
-    actions and severity assessment.
-    """)
+    <div class="agent-card reporter">
+        <h4>📋 Reporter Agent</h4>
+        <p>Produces validated RCA reports with corrective actions, severity assessment, and confidence scoring.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.markdown("---")
+st.markdown("<br>", unsafe_allow_html=True)
 
-# Quick Stats
+# ── System Status ──
 st.markdown("### System Status")
-col1, col2, col3, col4 = st.columns(4)
 
-# Check system status
 try:
     from src.rag.knowledge_base import KnowledgeBase
     kb = KnowledgeBase()
@@ -90,7 +140,7 @@ try:
     if labeled_path.exists():
         df = pd.read_csv(labeled_path)
         total_records = len(df)
-        anomaly_count = df["is_anomaly"].sum() if "is_anomaly" in df.columns else 0
+        anomaly_count = int(df["is_anomaly"].sum()) if "is_anomaly" in df.columns else 0
     else:
         total_records = 0
         anomaly_count = 0
@@ -104,106 +154,94 @@ try:
 except Exception:
     model_exists = False
 
-with col1:
-    st.metric("📊 KB Documents", kb_count)
-with col2:
-    st.metric("📁 Dataset Records", total_records)
-with col3:
-    st.metric("⚠️ Anomalies", int(anomaly_count))
-with col4:
-    st.metric("🤖 Detector", "Ready" if model_exists else "Not Trained")
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    st.metric("KB Chunks", f"{kb_count}")
+with c2:
+    st.metric("Dataset Records", f"{total_records:,}")
+with c3:
+    st.metric("Anomalies Detected", f"{anomaly_count:,}")
+with c4:
+    st.metric("Detector Status", "✅ Ready" if model_exists else "⚠️ Not Trained")
 
 st.markdown("---")
 
-# Quick Start
-st.markdown("### 🚀 Quick Start")
+# ── Getting Started ──
+st.markdown("### Getting Started")
 st.markdown("""
-1. **Navigate to Upload & Detect** to upload a billing CSV or use the pre-loaded dataset
-2. **View detected anomalies** and click on any to trigger the multi-agent RCA pipeline
-3. **Read the generated RCA report** with root cause, evidence, and recommended actions
-4. **Browse the Knowledge Base** to see indexed domain documents
-""")
+<span class="step-badge">1</span> Go to **Upload & Detect** → load billing data and run anomaly detection  
+<span class="step-badge">2</span> Go to **RCA Viewer** → select any anomaly → generate an AI-powered root cause report  
+<span class="step-badge">3</span> Browse the **Knowledge Base** to explore indexed telecom domain documents
+""", unsafe_allow_html=True)
 
-# Architecture Diagram (text-based)
-with st.expander("📐 System Architecture", expanded=False):
+st.markdown("---")
+
+# Architecture & Tech Stack in tabs
+tab1, tab2, tab3 = st.tabs(["📐 Architecture", "🛠️ Tech Stack", "📊 Ablation Results"])
+
+with tab1:
     st.code("""
 ┌─────────────────────────────────────────────────────────────────┐
 │  Layer 5: UI & Monitoring                                       │
-│  ┌──────────────┐  ┌──────────────┐                             │
-│  │  Streamlit    │  │   MLflow     │                             │
-│  │  (Dashboard)  │  │  (Tracking)  │                             │
-│  └──────┬───────┘  └──────┬───────┘                             │
-├─────────┼──────────────────┼────────────────────────────────────┤
+│  Streamlit Dashboard  +  MLflow Tracking                        │
+├─────────────────────────────────────────────────────────────────┤
 │  Layer 4: Agent Orchestration (LangGraph)                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                      │
-│  │Investi-  │→ │Reasoning │→ │Reporter  │                      │
-│  │gator     │  │Agent     │  │Agent     │                      │
-│  └──────────┘  └──────────┘  └──────────┘                      │
+│  Investigator  →  Reasoner  →  Reporter                         │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 3: RAG Engine                                             │
-│  ChromaDB + sentence-transformers + PyMuPDF                      │
+│  Layer 3: RAG Engine — ChromaDB + sentence-transformers          │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 2: Anomaly Detection (scikit-learn)                       │
-│  IsolationForest / DBSCAN                                        │
+│  Layer 2: Anomaly Detection — IsolationForest / DBSCAN           │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 1: Data Ingestion (Pandas + NumPy)                        │
+│  Layer 1: Data Ingestion — Pandas + NumPy                        │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 0: LLM Backend (Groq — Llama 3.3 70B)                         │
+│  Layer 0: LLM Backend — Groq (Llama 3.3 70B Versatile)          │
 └─────────────────────────────────────────────────────────────────┘
     """, language="text")
 
-# Tech Stack
-with st.expander("🛠️ Technology Stack", expanded=False):
-    tech_col1, tech_col2 = st.columns(2)
-    with tech_col1:
+with tab2:
+    t1, t2 = st.columns(2)
+    with t1:
         st.markdown("""
         | Component | Technology |
         |-----------|------------|
-        | LLM | Groq (Llama 3.3 70B Versatile) |
-        | Agent Orchestration | LangGraph |
-        | Vector Database | ChromaDB |
-        | Embeddings | sentence-transformers (MiniLM) |
-        | Anomaly Detection | scikit-learn |
+        | **LLM** | Groq — Llama 3.3 70B |
+        | **Agents** | LangGraph StateGraph |
+        | **Vector DB** | ChromaDB |
+        | **Embeddings** | all-MiniLM-L6-v2 |
+        | **Detection** | scikit-learn |
         """)
-    with tech_col2:
+    with t2:
         st.markdown("""
         | Component | Technology |
         |-----------|------------|
-        | Experiment Tracking | MLflow |
-        | UI | Streamlit |
-        | Data Processing | Pandas, NumPy |
-        | PDF Parsing | PyMuPDF |
-        | Evaluation | BERTScore, ROUGE-L |
+        | **Tracking** | MLflow |
+        | **UI** | Streamlit |
+        | **Evaluation** | BERTScore, ROUGE-L |
+        | **Stats** | Wilcoxon signed-rank |
+        | **Data** | IBM Telco (7,043 records) |
         """)
 
-# Ablation Results
-with st.expander("📊 Ablation Study Results", expanded=False):
+with tab3:
     try:
         import json as _json
         ablation_path = Path(__file__).parent / "ablation_results.json"
         if ablation_path.exists():
             with open(ablation_path) as f:
                 abl = _json.load(f)
-            st.markdown(f"**Model:** `{abl.get('model', 'N/A')}`")
+            st.markdown(f"**Model:** `{abl.get('model', 'N/A')}` | **Test Set:** 15 anomalies (3 per type × 5 types)")
             rows = []
             for cfg_key, cfg_data in abl["configs"].items():
                 m = cfg_data["metrics"]
                 rows.append({
                     "Config": cfg_data["description"],
-                    "ROUGE-L": f"{m['rouge_l_f1']:.4f}",
-                    "BERTScore": f"{m['bert_score_f1']:.4f}",
+                    "ROUGE-L": f"{m['rouge_l_f1']:.3f}",
+                    "BERTScore": f"{m['bert_score_f1']:.3f}",
                     "Type Accuracy": f"{m['type_accuracy']:.0%}",
                     "Avg Latency": f"{m['avg_latency_ms']:.0f}ms",
                 })
             import pandas as _pd
             st.dataframe(_pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-            a_m = abl["configs"]["A_no_rag"]["metrics"]
-            d_m = abl["configs"]["D_multi_agent_rag"]["metrics"]
-            rouge_imp = ((d_m["rouge_l_f1"] - a_m["rouge_l_f1"]) / max(a_m["rouge_l_f1"], 0.001)) * 100
-            bert_imp = ((d_m["bert_score_f1"] - a_m["bert_score_f1"]) / max(a_m["bert_score_f1"], 0.001)) * 100
-            st.success(f"Multi-Agent RAG vs No-RAG: ROUGE-L **{rouge_imp:+.1f}%** | BERTScore **{bert_imp:+.1f}%**")
         else:
-            st.info("Run `python run_ablation.py` to generate ablation results.")
+            st.info("Ablation results not available. Run `python run_ablation.py` to generate.")
     except Exception as e:
         st.warning(f"Could not load ablation results: {e}")

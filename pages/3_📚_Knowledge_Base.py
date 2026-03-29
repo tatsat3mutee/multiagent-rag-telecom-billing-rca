@@ -9,10 +9,36 @@ sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 from config import RCA_PLAYBOOKS_DIR, CORPUS_DIR
 
 st.set_page_config(page_title="Knowledge Base", page_icon="📚", layout="wide")
-st.title("📚 Knowledge Base Browser")
-st.markdown("Browse and search the RAG knowledge base used by the Investigator Agent.")
 
-# ── Knowledge Base Status ──
+# ── Custom CSS ──
+st.markdown("""
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    .page-header h2 { color: white; margin: 0; }
+    .page-header p { color: #e0e0e0; margin: 0.3rem 0 0 0; }
+    div[data-testid="stMetric"] {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 12px 16px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="page-header">
+    <h2>📚 Knowledge Base Browser</h2>
+    <p>Browse and search the RAG corpus used by the Investigator Agent</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ── KB Status ──
 try:
     from src.rag.knowledge_base import KnowledgeBase, build_knowledge_base
     kb = KnowledgeBase()
@@ -21,92 +47,82 @@ except Exception as e:
     kb_count = 0
     st.warning(f"Knowledge base not initialized: {e}")
 
-st.markdown("---")
-
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("📄 Total Chunks", kb_count)
-with col2:
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.metric("Total Chunks", kb_count)
+with c2:
     playbook_count = len(list(RCA_PLAYBOOKS_DIR.glob("*.md"))) if RCA_PLAYBOOKS_DIR.exists() else 0
-    st.metric("📖 Playbooks", playbook_count)
-with col3:
+    st.metric("Playbooks", playbook_count)
+with c3:
     try:
         sources = kb.get_all_sources()
-        st.metric("📁 Source Documents", len(sources))
+        st.metric("Source Documents", len(sources))
     except Exception:
-        st.metric("📁 Source Documents", 0)
+        st.metric("Source Documents", 0)
 
-# ── Build/Rebuild KB ──
+# ── Build/Rebuild ──
 st.markdown("---")
-build_col1, build_col2 = st.columns(2)
-with build_col1:
-    if st.button("🔨 Build Knowledge Base"):
+b1, b2 = st.columns(2)
+with b1:
+    if st.button("🔨  Build Knowledge Base", type="primary", use_container_width=True):
         with st.spinner("Building knowledge base..."):
             kb = build_knowledge_base(force_rebuild=False)
-            st.success(f"Knowledge base ready: {kb.count} document chunks indexed.")
+            st.success(f"Ready — {kb.count} chunks indexed.")
             st.rerun()
-with build_col2:
-    if st.button("🔄 Rebuild Knowledge Base"):
-        with st.spinner("Rebuilding knowledge base from scratch..."):
+with b2:
+    if st.button("🔄  Rebuild from Scratch", use_container_width=True):
+        with st.spinner("Rebuilding knowledge base..."):
             kb = build_knowledge_base(force_rebuild=True)
-            st.success(f"Knowledge base rebuilt: {kb.count} document chunks indexed.")
+            st.success(f"Rebuilt — {kb.count} chunks indexed.")
             st.rerun()
 
 # ── Search ──
 st.markdown("---")
-st.markdown("### 🔍 Search Knowledge Base")
+st.markdown("### Search Knowledge Base")
 
-search_query = st.text_input(
-    "Search query",
-    placeholder="e.g., zero billing root cause CDR failure",
-)
-
-search_k = st.slider("Number of results", 1, 20, 5)
+s1, s2 = st.columns([3, 1])
+with s1:
+    search_query = st.text_input("Search query", placeholder="e.g., zero billing root cause CDR failure")
+with s2:
+    search_k = st.slider("Results", 1, 20, 5)
 
 if search_query:
     if kb_count > 0:
         results = kb.search(search_query, n_results=search_k)
-
-        st.markdown(f"**{len(results)} results found:**")
+        st.markdown(f"**{len(results)} results**")
         for i, r in enumerate(results, 1):
-            relevance_pct = r['relevance_score'] * 100
-            with st.expander(
-                f"#{i} — {r['source']} (Relevance: {relevance_pct:.1f}%)",
-                expanded=(i <= 2),
-            ):
-                st.markdown(f"**Source:** {r['source']}")
-                st.markdown(f"**Relevance Score:** {r['relevance_score']:.4f}")
-                st.markdown("**Content:**")
+            pct = r["relevance_score"] * 100
+            with st.expander(f"#{i} — {r['source']}  ({pct:.1f}% relevance)", expanded=(i <= 2)):
+                st.markdown(f"**Source:** `{r['source']}` | **Score:** {r['relevance_score']:.4f}")
                 st.write(r["text"])
                 if r.get("metadata"):
                     st.json(r["metadata"])
     else:
-        st.warning("Knowledge base is empty. Click 'Build Knowledge Base' first.")
+        st.warning("Knowledge base is empty. Click **Build Knowledge Base** first.")
 
-# ── Browse Playbooks ──
+# ── Playbooks ──
 st.markdown("---")
-st.markdown("### 📖 RCA Playbooks")
+st.markdown("### RCA Playbooks")
 
 if RCA_PLAYBOOKS_DIR.exists():
     playbooks = sorted(RCA_PLAYBOOKS_DIR.glob("*.md"))
     if playbooks:
         for pb in playbooks:
             with st.expander(f"📄 {pb.stem.replace('_', ' ').title()}"):
-                content = pb.read_text(encoding="utf-8")
-                st.markdown(content)
+                st.markdown(pb.read_text(encoding="utf-8"))
     else:
-        st.info("No playbooks found. They will be created during system setup.")
+        st.info("No playbooks found. Run system setup first.")
 else:
     st.info("Playbooks directory not found.")
 
-# ── Source Documents ──
+# ── Indexed Sources ──
 st.markdown("---")
-st.markdown("### 📁 Indexed Sources")
+st.markdown("### Indexed Sources")
 if kb_count > 0:
     try:
         sources = kb.get_all_sources()
         for src in sources:
-            st.markdown(f"- 📄 {src}")
+            st.markdown(f"- 📄 `{src}`")
     except Exception as e:
         st.warning(f"Could not retrieve sources: {e}")
 else:
