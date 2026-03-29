@@ -34,7 +34,8 @@ jobs:
             --include="*.py" . && echo "PASS: No stale Ollama refs"
 
       - name: Verify config uses Groq
-        run: python -c "from config import GROQ_API_KEY, LLM_MODEL; assert LLM_MODEL == 'llama-3.3-70b-versatile', f'Bad model: {LLM_MODEL}'; print('PASS: Config OK')"
+        run: |
+          python -c "from config import GROQ_API_KEY, LLM_MODEL; assert LLM_MODEL == 'llama-3.3-70b-versatile', 'Bad model: ' + LLM_MODEL; print('PASS: Config OK')"
 
       - name: Test imports
         run: |
