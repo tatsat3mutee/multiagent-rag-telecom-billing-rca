@@ -16,6 +16,7 @@ st.set_page_config(page_title="RCA Viewer", page_icon="🔍", layout="wide")
 # ── Custom CSS ──
 st.markdown("""
 <style>
+    [data-testid="stSidebarNav"] { display: none !important; }
     .page-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1.5rem 2rem;
@@ -42,6 +43,18 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+with st.sidebar:
+    st.markdown("## 📡 Telecom RCA")
+    st.markdown("**Multi-Agent RAG System**")
+    st.caption("Autonomous Root Cause Analysis for Billing Anomalies")
+    st.markdown("---")
+    st.page_link("app.py", label="🏠  Home")
+    st.page_link("pages/1_📊_Upload_Detect.py", label="📊  Upload & Detect")
+    st.page_link("pages/2_🔍_RCA_Viewer.py", label="🔍  RCA Viewer")
+    st.page_link("pages/3_📚_Knowledge_Base.py", label="📚  Knowledge Base")
+    st.markdown("---")
+    st.caption("MTech Thesis — Tatsat Pandey | 2026")
 
 st.markdown("""
 <div class="page-header">
@@ -84,7 +97,7 @@ if "anomaly_type" in anomalies_df.columns:
 if "anomaly_confidence" in anomalies_df.columns:
     display_cols.append("anomaly_confidence")
 available_cols = [c for c in display_cols if c in anomalies_df.columns]
-st.dataframe(anomalies_df[available_cols].head(max_display), use_container_width=True)
+st.dataframe(anomalies_df[available_cols].head(max_display), width='stretch')
 
 # ── RCA Generation ──
 st.markdown("---")
@@ -266,4 +279,4 @@ if anomaly_options:
                     })
 
             st.success(f"Processed {len(batch_results)} anomalies.")
-            st.dataframe(pd.DataFrame(batch_results), use_container_width=True)
+            st.dataframe(pd.DataFrame(batch_results), width='stretch')

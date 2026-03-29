@@ -18,6 +18,9 @@ st.set_page_config(
 # ── Custom CSS ──
 st.markdown("""
 <style>
+    /* Hide default Streamlit auto-generated sidebar nav */
+    [data-testid="stSidebarNav"] { display: none !important; }
+
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
@@ -70,19 +73,13 @@ st.markdown("""
 # ── Sidebar ──
 with st.sidebar:
     st.markdown("## 📡 Telecom RCA")
+    st.markdown("**Multi-Agent RAG System**")
+    st.caption("Autonomous Root Cause Analysis for Billing Anomalies")
     st.markdown("---")
-    st.markdown("""
-    **Multi-Agent RAG System**  
-    Autonomous Root Cause Analysis  
-    for Billing Anomalies
-    """)
-    st.markdown("---")
-    st.markdown("#### Pages")
-    st.markdown("""
-    📊 **Upload & Detect** — Analyze billing data  
-    🔍 **RCA Viewer** — Generate RCA reports  
-    📚 **Knowledge Base** — Browse RAG corpus
-    """)
+    st.page_link("app.py", label="🏠  Home", icon=None)
+    st.page_link("pages/1_📊_Upload_Detect.py", label="📊  Upload & Detect")
+    st.page_link("pages/2_🔍_RCA_Viewer.py", label="🔍  RCA Viewer")
+    st.page_link("pages/3_📚_Knowledge_Base.py", label="📚  Knowledge Base")
     st.markdown("---")
     st.caption("MTech Thesis — Tatsat Pandey | 2026")
 
@@ -240,7 +237,7 @@ with tab3:
                     "Avg Latency": f"{m['avg_latency_ms']:.0f}ms",
                 })
             import pandas as _pd
-            st.dataframe(_pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(_pd.DataFrame(rows), width='stretch', hide_index=True)
         else:
             st.info("Ablation results not available. Run `python run_ablation.py` to generate.")
     except Exception as e:
