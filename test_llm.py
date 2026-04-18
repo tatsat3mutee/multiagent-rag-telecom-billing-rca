@@ -1,26 +1,27 @@
-"""Quick test: verify Llama 3.3 70B works through LangChain + Groq."""
+"""Quick smoke test: verify the configured LLM (Groq or Kimi) works."""
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
-from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage, SystemMessage
-from config import GROQ_API_KEY, LLM_MODEL
+from openai import OpenAI
+from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER
 
-print(f"Testing model: {LLM_MODEL} via Groq")
+print(f"Testing provider={LLM_PROVIDER} model={LLM_MODEL}")
 
-llm = ChatGroq(
+if not LLM_API_KEY:
+    raise SystemExit("No LLM key set. Add GROQ_API_KEY or KIMI_API_KEY to .env and retry.")
+
+kwargs = {"api_key": LLM_API_KEY}
+if LLM_BASE_URL:
+    kwargs["base_url"] = LLM_BASE_URL
+client = OpenAI(**kwargs)
+resp = client.chat.completions.create(
     model=LLM_MODEL,
-    api_key=GROQ_API_KEY,
     temperature=0.1,
     timeout=30,
+    messages=[
+        {"role": "system", "content": "You are a telecom billing expert."},
+        {"role": "user", "content": "In one sentence, what causes zero-billing anomalies in telecom systems?"},
+    ],
 )
-
-messages = [
-    SystemMessage(content="You are a telecom billing expert."),
-    HumanMessage(content="In one sentence, what causes zero-billing anomalies in telecom systems?"),
-]
-
-print("Calling LLM...")
-response = llm.invoke(messages)
-print(f"SUCCESS: {response.content}")
+print(f"SUCCESS: {resp.choices[0].message.content}")

@@ -54,6 +54,12 @@ class AgentState(TypedDict, total=False):
     hypothesis: str
     reasoning_chain: str
 
+    # Critic Agent output
+    critic_verdict: str        # "accept" | "revise"
+    critic_reasons: List[str]
+    critic_confidence: float
+    critic_attempts: int
+
     # Reporter Agent output
     rca_report: RCAReport
 

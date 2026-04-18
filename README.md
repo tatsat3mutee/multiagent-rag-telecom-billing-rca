@@ -30,7 +30,7 @@ Three specialized LLM-powered agents are orchestrated via LangGraph:
 ├─────────────────────────────────────────────────────────────┤
 │  Data Pipeline: Pandas + Synthetic Anomaly Injection         │
 ├─────────────────────────────────────────────────────────────┤
-│  LLM Backend: Groq (Llama 3.3 70B Versatile)                        │
+│  LLM Backend: OpenAI (gpt-4o-mini generator, gpt-4o judge)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -42,11 +42,14 @@ Three specialized LLM-powered agents are orchestrated via LangGraph:
 pip install -r requirements.txt
 ```
 
-### 2. Set up Groq API Key
+### 2. Set up OpenAI API Key
 
-Sign up at https://console.groq.com and get a free API key, then create a `.env` file:
+Sign up at https://platform.openai.com and create an API key, then create a `.env` file:
 ```
-GROQ_API_KEY=gsk_your_key_here
+OPENAI_API_KEY=sk-...
+# optional overrides
+LLM_MODEL=gpt-4o-mini
+JUDGE_MODEL=gpt-4o
 ```
 
 ### 3. Run Full Pipeline
@@ -146,7 +149,7 @@ RAGML/
 
 | Component | Technology |
 |-----------|------------|
-| LLM | Groq (Llama 3.3 70B Versatile) |
+| LLM | OpenAI (gpt-4o-mini generator, gpt-4o judge) |
 | Agent Orchestration | LangGraph |
 | Vector Database | ChromaDB |
 | Embeddings | sentence-transformers (all-MiniLM-L6-v2) |

@@ -5,12 +5,17 @@ Ablation Study — Compares 4 configurations:
   Config C: Single Agent + RAG (one agent does everything)
   Config D: Multi-Agent + RAG (proposed 3-agent pipeline)
 
-Usage: python run_ablation.py
+Usage: python run_ablation.py [--n N] [--configs A,B,C,D] [--gt]
+   --n N        limit to N anomalies per type (default 12 when --gt, else 3)
+   --configs    subset of configs to run (default A,B,C,D)
+   --gt         build test anomalies from the 60-item ground truth
+                (enables per-item ground_truth_id matching for fair eval)
 """
 import sys
 import os
 import json
 import time
+import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -21,36 +26,57 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from config import (
-    GROQ_API_KEY, LLM_MODEL, PROCESSED_DATA_DIR,
+    LLM_MODEL, PROCESSED_DATA_DIR,
     TOP_K, ABLATION_CONFIGS, GROUND_TRUTH_DIR,
 )
+from config import LLM_API_KEY, LLM_BASE_URL
+from src.utils.rate_limit import get_limiter
 
 # Pre-import to avoid repeated lazy-import overhead inside loops
-from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage, HumanMessage
+from openai import OpenAI
 
 
 # ── Shared LLM helper ──
 
-# Reusable LLM instance (avoids re-creating per call)
-_llm = ChatGroq(
-    model=LLM_MODEL,
-    api_key=GROQ_API_KEY,
-    temperature=0.1,
-    timeout=30,
-)
+def _build_client():
+    if not LLM_API_KEY:
+        return None
+    kwargs = {"api_key": LLM_API_KEY}
+    if LLM_BASE_URL:
+        kwargs["base_url"] = LLM_BASE_URL
+    return OpenAI(**kwargs)
+
+
+_client = _build_client()
+_limiter = get_limiter()
 
 
 def call_llm(system_prompt: str, user_prompt: str) -> str:
-    """Call the Groq LLM with retry on rate limits."""
-    messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+    """Call the configured OpenAI-compatible LLM (OpenAI / Kimi / MiniMax / Groq / etc.)
+    with token-bucket pacing + retry on rate limits."""
+    if _client is None:
+        raise RuntimeError(
+            "No LLM API key set — configure GROQ_API_KEY or KIMI_API_KEY in .env "
+            "before running the ablation."
+        )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
     max_retries = 5
     for attempt in range(max_retries):
+        _limiter.acquire()  # proactive pacing
         try:
-            response = _llm.invoke(messages)
-            return response.content
+            resp = _client.chat.completions.create(
+                model=LLM_MODEL,
+                temperature=0.1,
+                messages=messages,
+                timeout=60,
+            )
+            return resp.choices[0].message.content
         except Exception as e:
-            if "429" in str(e) or "rate" in str(e).lower():
+            msg = str(e).lower()
+            if "429" in msg or "rate" in msg or "timeout" in msg:
                 wait = 2 ** attempt * 5  # 5s, 10s, 20s, 40s, 80s
                 print(f" [rate-limit, retry in {wait}s]", end="", flush=True)
                 time.sleep(wait)
@@ -498,22 +524,37 @@ def evaluate_config_results(results: List[dict]) -> dict:
 
 # ── Main Runner ──
 
-def run_ablation():
-    """Run all 4 configs and produce comparison results."""
+def run_ablation(test_anomalies: List[dict] = None,
+                 config_keys: List[str] = None,
+                 run_judge: bool = False):
+    """Run the selected configs and produce comparison results.
+
+    Args:
+        test_anomalies: If None, falls back to the legacy 15-item hard-coded set.
+        config_keys: Subset of ('A_no_rag','B_rag_only','C_single_agent_rag',
+            'D_multi_agent_rag'). Defaults to all four.
+        run_judge: If True, runs LLM-as-Judge + faithfulness + answer-relevancy
+            on each config's results after generation. Requires a configured LLM key.
+    """
     print("\n" + "=" * 70)
     print("  ABLATION STUDY — Multi-Agent RAG System")
     print(f"  LLM: {LLM_MODEL}")
     print("=" * 70)
 
-    test_anomalies = get_test_anomalies()
-    print(f"\nTest set: {len(test_anomalies)} anomalies (3 per type × 5 types)")
+    if test_anomalies is None:
+        test_anomalies = get_test_anomalies()
+    print(f"\nTest set: {len(test_anomalies)} anomalies")
 
-    configs = {
+    all_configs = {
         "A_no_rag": ("Config A: No RAG (Direct LLM)", run_config_a),
         "B_rag_only": ("Config B: RAG + LLM (single prompt)", run_config_b),
         "C_single_agent_rag": ("Config C: Single Agent + RAG", run_config_c),
         "D_multi_agent_rag": ("Config D: Multi-Agent + RAG [proposed]", run_config_d),
     }
+    if config_keys:
+        configs = {k: v for k, v in all_configs.items() if k in config_keys}
+    else:
+        configs = all_configs
 
     all_results = {}
     all_metrics = {}
@@ -544,12 +585,25 @@ def run_ablation():
                     "retrieved_docs": [],
                     "config": config_key,
                 })
-            # Rate-limit pacing: wait 5s between calls (Groq free = 30 RPM)
-            time.sleep(5)
+            # Pacing is handled by the token bucket inside call_llm(); no
+            # fixed sleep here. Rate-limit 429 retries still protect bursts.
 
         metrics = evaluate_config_results(results)
         all_results[config_key] = results
         all_metrics[config_key] = metrics
+
+        if run_judge:
+            try:
+                from src.evaluation.llm_judge import judge_batch, aggregate_judge_scores
+                from src.evaluation.metrics import load_ground_truth
+                gt_by_type = {}
+                for gt in load_ground_truth():
+                    gt_by_type.setdefault(gt["anomaly_type"], gt)  # type->any row
+                print(f"  [judge] scoring {len(results)} results for {config_key}...")
+                judge_batch(results, gt_by_type, verbose=False)
+                metrics.update(aggregate_judge_scores(results))
+            except Exception as e:
+                print(f"  [judge] pass failed for {config_key}: {e}")
 
         print(f"\n  Results: ROUGE-L={metrics['rouge_l_f1']:.3f}±{metrics.get('rouge_l_std', 0):.3f} | "
               f"BERTScore={metrics['bert_score_f1']:.3f} | "
@@ -575,28 +629,33 @@ def run_ablation():
 
     # ── Statistical Significance Tests ──
     print(f"\n{'─' * 90}")
-    print("  STATISTICAL SIGNIFICANCE (Wilcoxon signed-rank test)")
+    print("  STATISTICAL SIGNIFICANCE (paired-bootstrap + Wilcoxon) on ROUGE-L")
     print(f"{'─' * 90}")
 
     try:
-        from scipy.stats import wilcoxon
+        from src.evaluation.stats import bootstrap_ci, paired_bootstrap_pvalue, wilcoxon_paired
 
-        d_rouge = all_metrics["D_multi_agent_rag"].get("rouge_l_per_sample", [])
+        # 95% CI per config
+        for ck in configs:
+            vals = all_metrics[ck].get("rouge_l_per_sample", [])
+            if vals:
+                m, lo, hi = bootstrap_ci(vals)
+                print(f"  {ck}: ROUGE-L mean={m:.3f}  95% CI=[{lo:.3f}, {hi:.3f}]  n={len(vals)}")
+                all_metrics[ck]["rouge_ci95"] = [round(lo, 4), round(hi, 4)]
+
+        # Pairwise D vs {A,B,C}
+        d_rouge = all_metrics.get("D_multi_agent_rag", {}).get("rouge_l_per_sample", [])
         for compare_key in ["A_no_rag", "B_rag_only", "C_single_agent_rag"]:
+            if compare_key not in all_metrics:
+                continue
             c_rouge = all_metrics[compare_key].get("rouge_l_per_sample", [])
             if len(d_rouge) == len(c_rouge) and len(d_rouge) >= 5:
-                diff = [d - c for d, c in zip(d_rouge, c_rouge)]
-                # Check if all differences are zero (wilcoxon fails on all-zero)
-                if any(d != 0 for d in diff):
-                    stat, p_val = wilcoxon(d_rouge, c_rouge)
-                    sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "n.s."
-                    cname = configs[compare_key][0]
-                    print(f"  D vs {cname}: W={stat:.1f}, p={p_val:.4f} {sig}")
-                else:
-                    cname = configs[compare_key][0]
-                    print(f"  D vs {cname}: identical distributions (no difference)")
-    except ImportError:
-        print("  scipy not available — skipping significance tests")
+                p_boot = paired_bootstrap_pvalue(d_rouge, c_rouge)
+                w = wilcoxon_paired(d_rouge, c_rouge)
+                sig = "***" if p_boot < 0.001 else "**" if p_boot < 0.01 else "*" if p_boot < 0.05 else "n.s."
+                cname = configs[compare_key][0]
+                print(f"  D vs {cname}: Δmean={np.mean(d_rouge)-np.mean(c_rouge):+.3f}  "
+                      f"p_bootstrap={p_boot:.4f}  p_wilcoxon={w['pvalue']:.4f}  {sig}")
     except Exception as e:
         print(f"  Significance test error: {e}")
 
@@ -684,4 +743,41 @@ def run_ablation():
 
 
 if __name__ == "__main__":
-    run_ablation()
+    parser = argparse.ArgumentParser(description="Run the RCA ablation study.")
+    parser.add_argument("--n", type=int, default=None,
+                        help="Limit to N anomalies per type (default: 12 with --gt, 3 without).")
+    parser.add_argument("--configs", type=str, default="A,B,C,D",
+                        help="Comma-separated subset of configs: A,B,C,D")
+    parser.add_argument("--gt", action="store_true",
+                        help="Use 60-item ground truth as the test set (per-item GT matching).")
+    parser.add_argument("--judge", action="store_true",
+                        help="Also run LLM-as-Judge + faithfulness + relevancy.")
+    args = parser.parse_args()
+
+    key_map = {
+        "A": "A_no_rag", "B": "B_rag_only",
+        "C": "C_single_agent_rag", "D": "D_multi_agent_rag",
+    }
+    config_keys = [key_map[c.strip().upper()] for c in args.configs.split(",") if c.strip().upper() in key_map]
+
+    if args.gt:
+        from src.utils.test_data import anomalies_from_ground_truth
+        n_per_type = args.n if args.n is not None else 12
+        test_set = anomalies_from_ground_truth(limit_per_type=n_per_type)
+        print(f"\n[mode] Using GT-derived test set: {len(test_set)} anomalies "
+              f"({n_per_type} per type, ground_truth_id preserved).")
+    else:
+        base = get_test_anomalies()
+        if args.n is not None:
+            # Keep `args.n` per type from the 15-item hardcoded set
+            by_type: Dict[str, List[dict]] = {}
+            for a in base:
+                by_type.setdefault(a["anomaly_type"], []).append(a)
+            test_set = []
+            for rows in by_type.values():
+                test_set.extend(rows[: args.n])
+        else:
+            test_set = base
+        print(f"\n[mode] Using legacy hardcoded test set: {len(test_set)} anomalies.")
+
+    run_ablation(test_anomalies=test_set, config_keys=config_keys, run_judge=args.judge)

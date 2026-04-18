@@ -1,0 +1,746 @@
+{
+  "c0000": {
+    "text": "# CDR Processing Failure \u2014 RCA Playbook\n\n## Overview\nCDR (Call Detail Record) processing failures occur when the billing system fails to correctly parse, validate, or process CDR records from network elements. This results in missing or corrupted billing data, leading to inaccurate bills and revenue leakage.\n\n## Common Root Causes",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0001": {
+    "text": "to inaccurate bills and revenue leakage.\n\n## Common Root Causes ### 1. CDR Format Mismatch After Network Upgrade\n**Description:** After a network element software upgrade, the CDR format changes (new fields, modified field positions, changed encoding) but the mediation/billing system was not updated to handle the new format.\n**Indicators:** Processing failures start immediately after a network upgrade; specific CDR field parsing errors in logs; NULL values in previously populated billing fields.\n**Investigation Steps:**",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0002": {
+    "text": "in previously populated billing fields.\n**Investigation Steps:** 1. Check network element change management log for recent upgrades\n2. Compare pre/post upgrade CDR field format specifications\n3. Review mediation device parsing rules for compatibility\n4. Check CDR rejection logs for format-specific errors\n**Resolution:** Update mediation device CDR parsing rules; reprocess rejected CDRs; validate end-to-end after fix.",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0003": {
+    "text": "g rules; reprocess rejected CDRs; validate end-to-end after fix. ### 2. Data Pipeline Overflow / Buffer Exhaustion\n**Description:** During peak traffic periods, the CDR processing pipeline's buffers overflow, causing CDRs to be dropped or corrupted.\n**Indicators:** Failures correlate with peak traffic hours; CDR volume exceeds pipeline capacity thresholds; partial CDR records (truncated fields).\n**Investigation Steps:**\n1. Check CDR pipeline throughput metrics during failure window\n2. Compare CDR volume with pipeline capacity limits",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0004": {
+    "text": "ilure window\n2. Compare CDR volume with pipeline capacity limits 3. Verify buffer/queue sizes and overflow handling policy\n4. Check for resource contention (CPU, memory, disk I/O) on mediation servers\n**Resolution:** Increase pipeline buffer capacity; implement backpressure mechanisms; scale mediation infrastructure.",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0005": {
+    "text": "plement backpressure mechanisms; scale mediation infrastructure. ### 3. Database Storage Failure\n**Description:** The CDR storage database runs out of space, experiences corruption, or has connection pool exhaustion, preventing CDR records from being persisted.\n**Indicators:** Database error messages in CDR pipeline logs; sudden drop in stored CDR count; database disk space alerts.\n**Investigation Steps:**\n1. Check CDR database storage utilization and health\n2. Review database error logs for connection/space issues\n3. Verify database backup and archival processes",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0006": {
+    "text": "on/space issues\n3. Verify database backup and archival processes 4. Check if old CDRs are being archived per retention policy\n**Resolution:** Expand storage; implement CDR archival; fix database health issues; replay lost CDRs from source.",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0007": {
+    "text": "hival; fix database health issues; replay lost CDRs from source. ### 4. Encoding / Character Set Issues\n**Description:** CDR fields contain unexpected characters, multi-byte encoding issues, or field delimiter conflicts that cause parsing failures.\n**Indicators:** Specific fields consistently failing validation; failures correlate with international/roaming CDRs; character encoding errors in logs.\n**Investigation Steps:**\n1. Examine raw CDR files for encoding anomalies\n2. Check field delimiter handling in parser\n3. Verify character set configuration between systems",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0008": {
+    "text": "in parser\n3. Verify character set configuration between systems 4. Test with sample CDRs from different network elements\n**Resolution:** Fix encoding configuration; update parser to handle multi-byte characters; reprocess failed CDRs.",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0009": {
+    "text": "e parser to handle multi-byte characters; reprocess failed CDRs. ### 5. Timestamp Synchronization Issues\n**Description:** Clock drift between network elements and the mediation system causes CDRs to have timestamps outside the accepted processing window, leading to rejection.\n**Indicators:** CDRs rejected for \"timestamp out of range\"; clock drift detected between NTP sources; failures correlate with specific network elements.\n**Investigation Steps:**\n1. Compare timestamps across CDR sources and mediation system\n2. Check NTP synchronization status on all involved systems",
+    "metadata": {
+      "chunk_index": 9,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0010": {
+    "text": "stem\n2. Check NTP synchronization status on all involved systems 3. Verify timestamp tolerance window in CDR validation rules\n4. Audit clock synchronization infrastructure\n**Resolution:** Fix NTP synchronization; adjust timestamp tolerance if appropriate; reprocess rejected CDRs.",
+    "metadata": {
+      "chunk_index": 10,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0011": {
+    "text": "ust timestamp tolerance if appropriate; reprocess rejected CDRs. ## Severity Assessment\n- **Revenue Impact:** HIGH \u2014 Unprocessed CDRs = unbilled usage = direct revenue leakage\n- **Regulatory Risk:** MEDIUM \u2014 Billing completeness requirements per regulatory frameworks\n- **Customer Impact:** MEDIUM \u2014 May result in delayed or inaccurate bills",
+    "metadata": {
+      "chunk_index": 11,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0012": {
+    "text": "mer Impact:** MEDIUM \u2014 May result in delayed or inaccurate bills ## Reference Standards\n- 3GPP TS 32.240 \u2014 Charging architecture and CDR processing requirements\n- 3GPP TS 32.297 \u2014 CDR file transfer interface specifications\n- 3GPP TS 32.298 \u2014 CDR parameter definitions and encoding rules\n- ETSI TS 101 046 \u2014 Billing and charging functional requirements",
+    "metadata": {
+      "chunk_index": 12,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0013": {
+    "text": "- ETSI TS 101 046 \u2014 Billing and charging functional requirements ## Recommended Actions\n1. Identify root cause category from CDR pipeline error logs\n2. Check recent change management events (network upgrades, config changes)\n3. Verify pipeline capacity vs. current CDR volume\n4. Reprocess all failed/rejected CDRs after fix\n5. Add automated monitoring for CDR processing success rate (target: >99.9%)\n6. Implement CDR reconciliation between network elements and billing system",
+    "metadata": {
+      "chunk_index": 13,
+      "total_chunks": 14,
+      "source": "cdr_failure_playbook.md"
+    }
+  },
+  "c0014": {
+    "text": "# Duplicate Charge Anomaly \u2014 RCA Playbook\n\n## Overview\nDuplicate charges occur when a customer is billed more than once for the same service usage within a billing cycle. This leads to overbilling complaints and regulatory risk.\n\n## Common Root Causes",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0015": {
+    "text": "erbilling complaints and regulatory risk.\n\n## Common Root Causes ### 1. CDR Deduplication Engine Failure\n**Description:** The CDR deduplication process, which normally filters out duplicate records from network elements, fails or is bypassed during processing.\n**Indicators:** Exact duplicate CDR records with identical timestamps, same calling/called party, same duration. Multiple duplicate events in the same batch.\n**Investigation Steps:**\n1. Check deduplication engine logs for error/failure events\n2. Verify deduplication rules are active and correctly configured",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0016": {
+    "text": ". Verify deduplication rules are active and correctly configured 3. Identify the CDR source (which network element produced duplicates)\n4. Check if duplicates originated from the mediation device or billing system\n**Resolution:** Remove duplicate CDRs; restart deduplication engine; reprocess affected billing records.",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0017": {
+    "text": "estart deduplication engine; reprocess affected billing records. ### 2. Mediation Device Re-transmission\n**Description:** The mediation device between the network and billing system re-transmits CDRs due to acknowledgment timeout, but the original CDRs were already processed.\n**Indicators:** CDR records with same content but slightly different ingestion timestamps; pattern correlates with network congestion periods.\n**Investigation Steps:**\n1. Check mediation device re-transmission logs\n2. Verify acknowledgment (ACK) protocol between mediation and billing",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0018": {
+    "text": "rify acknowledgment (ACK) protocol between mediation and billing 3. Check network congestion reports for the affected time window\n**Resolution:** Implement idempotent CDR processing; fix ACK timeout configuration.",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0019": {
+    "text": "lement idempotent CDR processing; fix ACK timeout configuration. ### 3. Billing System Retry Logic Error\n**Description:** The billing system's retry mechanism for failed transactions duplicates the charge when the original transaction actually succeeded but the confirmation was lost.\n**Indicators:** Two identical charge entries with slightly different processing timestamps; second entry appears after system timeout period.\n**Investigation Steps:**\n1. Review billing system transaction logs for retry events\n2. Check for transaction ID uniqueness enforcement",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0020": {
+    "text": "retry events\n2. Check for transaction ID uniqueness enforcement 3. Verify retry logic configuration and timeout settings\n**Resolution:** Implement transaction-level idempotency; add unique transaction ID checks before charge posting.",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0021": {
+    "text": "potency; add unique transaction ID checks before charge posting. ### 4. Cross-System Synchronization Failure\n**Description:** When multiple billing systems handle different service types (voice, data, VAS), synchronization failures can cause the same usage to be billed by multiple systems.\n**Indicators:** Duplicate charges from different billing system IDs for the same usage event; typically affects bundled service plans.\n**Investigation Steps:**\n1. Check cross-system billing reconciliation reports\n2. Verify service-to-system routing rules",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0022": {
+    "text": "reconciliation reports\n2. Verify service-to-system routing rules 3. Audit recent changes to billing system orchestration\n**Resolution:** Fix routing rules; reconcile and reverse duplicate charges; strengthen inter-system deduplication.",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0023": {
+    "text": "everse duplicate charges; strengthen inter-system deduplication. ## Severity Assessment\n- **Revenue Impact:** HIGH \u2014 Overbilling leads to customer complaints, chargebacks, and regulatory fines\n- **Regulatory Risk:** HIGH \u2014 FCC/TRAI regulations mandate billing accuracy; systematic duplicates can trigger investigation\n- **Customer Impact:** HIGH \u2014 Direct financial harm to customers; trust erosion",
+    "metadata": {
+      "chunk_index": 9,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0024": {
+    "text": "pact:** HIGH \u2014 Direct financial harm to customers; trust erosion ## Reference Standards\n- 3GPP TS 32.240 Section 4.3 \u2014 CDR uniqueness requirements\n- 3GPP TS 32.297 \u2014 CDR file transfer and deduplication\n- FCC Truth-in-Billing rules (47 CFR \u00a7 64.2401)\n- TRAI billing accuracy guidelines",
+    "metadata": {
+      "chunk_index": 10,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0025": {
+    "text": "ling rules (47 CFR \u00a7 64.2401)\n- TRAI billing accuracy guidelines ## Recommended Actions\n1. Immediately reverse duplicate charges for affected customers\n2. Audit and repair CDR deduplication engine\n3. Implement transaction-level idempotency in billing system\n4. Add real-time monitoring for duplicate charge rate\n5. File regulatory compliance report if threshold exceeded",
+    "metadata": {
+      "chunk_index": 11,
+      "total_chunks": 12,
+      "source": "duplicate_charge_playbook.md"
+    }
+  },
+  "c0026": {
+    "text": "# Incident Response Framework for Billing Anomalies\n\n## Incident Classification",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0027": {
+    "text": "onse Framework for Billing Anomalies\n\n## Incident Classification ### Severity Levels\n| Level | Description | Response Time | Examples |\n|-------|-------------|---------------|----------|\n| P1 - Critical | Widespread billing system failure affecting >10% of customers | 15 minutes | Complete billing pipeline outage, mass duplicate charging |\n| P2 - High | Significant billing error affecting specific customer segment | 1 hour | Zero-billing for a plan type, SLA breach for enterprise customer |",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0028": {
+    "text": "ro-billing for a plan type, SLA breach for enterprise customer | | P3 - Medium | Isolated billing anomaly, limited customer impact | 4 hours | Individual account usage spike, single CDR failure |\n| P4 - Low | Minor billing discrepancy, no immediate revenue impact | 24 hours | Rounding differences, delayed CDR processing |",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0029": {
+    "text": "pact | 24 hours | Rounding differences, delayed CDR processing | ## Root Cause Analysis (RCA) Methodology\n\n### Step 1: Anomaly Characterization\n- What type of anomaly? (zero-billing, duplicate, spike, CDR failure, SLA breach)\n- How many accounts affected?\n- What is the time range of the anomaly?\n- What is the estimated revenue impact?\n\n### Step 2: Data Collection\n- Pull affected customer records and CDR data\n- Gather system logs from relevant pipeline stages\n- Check change management records for recent modifications\n- Query monitoring dashboards for correlated events",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0030": {
+    "text": "odifications\n- Query monitoring dashboards for correlated events ### Step 3: Hypothesis Generation\nBased on the anomaly type and data collected, generate ranked hypotheses:\n1. Primary hypothesis (most likely cause based on indicators)\n2. Secondary hypotheses (alternative explanations)\n3. Each hypothesis should be testable and falsifiable",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0031": {
+    "text": "lanations)\n3. Each hypothesis should be testable and falsifiable ### Step 4: Root Cause Verification\n- Test each hypothesis against available data\n- Eliminate hypotheses that don't match the evidence\n- Confirm the root cause through:\n  - Log correlation\n  - Configuration audit\n  - Timeline analysis\n  - Reproduction in test environment (if applicable)\n\n### Step 5: Resolution\n- Implement fix for the root cause\n- Reprocess affected billing records\n- Issue corrective billing/credits to affected customers\n- Document the resolution for future reference",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0032": {
+    "text": "ffected customers\n- Document the resolution for future reference ### Step 6: Prevention\n- Add monitoring/alerting for the failure mode\n- Update runbooks and playbooks\n- Implement automation to detect similar issues earlier\n- Conduct post-incident review\n\n## Escalation Matrix",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0033": {
+    "text": "ues earlier\n- Conduct post-incident review\n\n## Escalation Matrix | Condition | Escalation Target | Action |\n|-----------|-------------------|--------|\n| Revenue impact > $10K | Revenue Assurance Manager | Immediate notification |\n| >1000 customers affected | VP Operations | War room activation |\n| Regulatory SLA violated | Legal/Compliance | Regulatory notification preparation |\n| Fraud suspected | Fraud team + Security | Account suspension + investigation |\n| System outage | Platform Engineering | DR activation if needed |",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0034": {
+    "text": "System outage | Platform Engineering | DR activation if needed | ## Mean Time to Resolution (MTTR) Targets\n- P1: MTTR < 2 hours\n- P2: MTTR < 8 hours\n- P3: MTTR < 24 hours\n- P4: MTTR < 72 hours\n\n## Common Resolution Patterns\n\n### Pattern: CDR Reprocessing\nTrigger: Missing or corrupted CDR data\nSteps: Identify source \u2192 Retrieve raw CDRs \u2192 Fix pipeline issue \u2192 Reprocess \u2192 Validate\n\n### Pattern: Rating Correction\nTrigger: Incorrect charges applied\nSteps: Identify affected plan/tariff \u2192 Fix rating configuration \u2192 Reprocess affected bills \u2192 Issue credits",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0035": {
+    "text": "rating configuration \u2192 Reprocess affected bills \u2192 Issue credits ### Pattern: Deduplication Recovery\nTrigger: Duplicate charges detected\nSteps: Identify duplicate scope \u2192 Reverse duplicate charges \u2192 Fix deduplication logic \u2192 Validate\n\n### Pattern: SLA Credit Issuance\nTrigger: SLA threshold breached\nSteps: Calculate breach duration/amount \u2192 Compute penalty per contract \u2192 Issue credit \u2192 Notify customer",
+    "metadata": {
+      "chunk_index": 9,
+      "total_chunks": 10,
+      "source": "incident_response_framework.md"
+    }
+  },
+  "c0036": {
+    "text": "# Revenue Assurance in Telecom \u2014 Best Practices\n\n## What is Revenue Assurance?\nRevenue Assurance (RA) is the practice of ensuring that all services delivered by a telecom operator are accurately captured, rated, billed, and collected. The TM Forum estimates that telecom operators lose 1-5% of revenue annually due to billing leakage.\n\n## Revenue Leakage Sources",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0037": {
+    "text": "nue annually due to billing leakage.\n\n## Revenue Leakage Sources ### Network-to-Billing Leakage\n- CDRs generated by network but lost before reaching billing system\n- Typical loss point: mediation device buffer overflow\n- Detection: Compare network CDR count with billing CDR count\n\n### Rating Leakage\n- CDRs processed but rated at incorrect (lower) amounts\n- Typical cause: tariff configuration errors, promotional override bugs\n- Detection: Sample audit of rated vs. expected amounts",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0038": {
+    "text": "ide bugs\n- Detection: Sample audit of rated vs. expected amounts ### Billing Leakage\n- Rated CDRs not appearing on customer bills\n- Typical cause: billing cycle boundary errors, account status issues\n- Detection: Reconcile rated revenue with billed revenue\n\n### Collection Leakage\n- Billed amounts not collected from customers\n- Typical cause: payment processing failures, incorrect dunning\n- Detection: Aging analysis of accounts receivable\n\n## Key Revenue Assurance Controls",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0039": {
+    "text": "alysis of accounts receivable\n\n## Key Revenue Assurance Controls ### 1. CDR Reconciliation\n- End-to-end CDR count reconciliation (network \u2192 mediation \u2192 billing)\n- Threshold: \u22640.1% variance is acceptable\n- Frequency: Daily automated reconciliation\n- Alert if variance exceeds threshold\n\n### 2. Rating Audit\n- Sample 1% of rated CDRs and manually verify charges\n- Compare with tariff plan documentation\n- Focus on: new plans, recently modified plans, promotional rates\n- Frequency: Weekly",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0040": {
+    "text": ", recently modified plans, promotional rates\n- Frequency: Weekly ### 3. Billing Completeness\n- Verify all active accounts receive bills on schedule\n- Check for zero-value bills on accounts with known usage\n- Verify tax and regulatory fee calculations\n- Frequency: Per billing cycle\n\n### 4. Revenue Trending\n- Track revenue metrics over time (daily, weekly, monthly)\n- Flag significant deviations (>5% week-over-week)\n- Segment by: plan type, service type, customer segment, geography\n- Statistical methods: z-score, exponential smoothing, control charts",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0041": {
+    "text": "tistical methods: z-score, exponential smoothing, control charts ## Anomaly Detection for Revenue Assurance\n\n### Statistical Methods\n- **Z-score threshold:** Flag transactions >3\u03c3 from mean\n- **Grubbs' test:** Identify single outliers in normally distributed data\n- **IQR method:** Flag values below Q1-1.5\u00d7IQR or above Q3+1.5\u00d7IQR",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0042": {
+    "text": "**IQR method:** Flag values below Q1-1.5\u00d7IQR or above Q3+1.5\u00d7IQR ### Machine Learning Methods\n- **Isolation Forest:** Efficient for high-dimensional anomaly detection; works well with mixed feature types\n- **DBSCAN:** Density-based clustering; identifies anomalies as noise points\n- **Autoencoders:** Neural network approach; learns normal billing patterns and flags deviations\n- **One-Class SVM:** Learns boundary of normal data; useful for highly imbalanced datasets",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0043": {
+    "text": "s boundary of normal data; useful for highly imbalanced datasets ### Ensemble Approach\nBest practice: Combine multiple detection methods:\n1. Rule-based checks (known patterns, business rules)\n2. Statistical methods (distribution-based outlier detection)\n3. ML models (pattern-based anomaly detection)\n4. Flag as anomaly if \u22652 methods agree (consensus approach)",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0044": {
+    "text": "ion)\n4. Flag as anomaly if \u22652 methods agree (consensus approach) ## Industry Benchmarks\n| Metric | Best-in-Class | Industry Average | Poor |\n|--------|--------------|------------------|------|\n| Revenue Leakage | <0.5% | 1-3% | >5% |\n| Billing Accuracy | >99.8% | 99.0-99.5% | <99% |\n| CDR Processing Rate | >99.99% | 99.5-99.9% | <99.5% |\n| MTTR (Billing Issues) | <2 hours | 4-8 hours | >24 hours |",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 9,
+      "source": "revenue_assurance.md"
+    }
+  },
+  "c0045": {
+    "text": "# SLA Breach Anomaly \u2014 RCA Playbook\n\n## Overview\nSLA (Service Level Agreement) breach occurs when a customer's actual billing exceeds the contractual thresholds defined in their service agreement, or when service quality metrics fall below guaranteed levels. Billing-related SLA breaches typically involve charges exceeding contract caps or guaranteed rate violations.\n\n## Common Root Causes",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0046": {
+    "text": "tract caps or guaranteed rate violations.\n\n## Common Root Causes ### 1. Contract Threshold Not Applied in Rating Engine\n**Description:** The customer's contractual billing cap or rate ceiling was not properly configured in the rating engine, allowing charges to exceed the agreed-upon maximum.\n**Indicators:** Charges consistently above contract cap; other customers on same plan are correctly capped; configuration gap between CRM contract and billing system.\n**Investigation Steps:**\n1. Pull customer's contract details from CRM \u2014 identify billing cap and rate terms",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0047": {
+    "text": "contract details from CRM \u2014 identify billing cap and rate terms 2. Check rating engine configuration for this customer/plan\n3. Compare contract terms with rating rules\n4. Verify when the configuration divergence started\n**Resolution:** Correct rating engine configuration; reprocess bills from divergence date; issue refund for overcharges.",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0048": {
+    "text": "rocess bills from divergence date; issue refund for overcharges. ### 2. Plan Migration Error\n**Description:** During a plan migration or upgrade, the old plan's billing rules were deactivated before the new plan's rules were fully configured, resulting in uncapped billing.\n**Indicators:** SLA breach starts immediately after plan change event; gap between old plan end and new plan start; default or fallback rates applied.\n**Investigation Steps:**\n1. Check customer's plan change history\n2. Verify plan migration workflow execution",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0049": {
+    "text": "plan change history\n2. Verify plan migration workflow execution 3. Check if rollback/fallback rates are higher than contract rates\n4. Review plan migration testing checklist\n**Resolution:** Apply correct plan retroactively; refund excess charges; fix migration workflow.",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0050": {
+    "text": "an retroactively; refund excess charges; fix migration workflow. ### 3. Usage Type Reclassification\n**Description:** A change in usage classification rules causes previously included usage (within plan) to be reclassified as out-of-plan or premium usage, incurring additional charges.\n**Indicators:** Charges from specific usage types that were previously included; rule change event correlates with breach; affects multiple customers on similar plans.\n**Investigation Steps:**\n1. Review recent changes to usage classification rules",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0051": {
+    "text": "Steps:**\n1. Review recent changes to usage classification rules 2. Compare pre/post classification for affected usage types\n3. Verify if change was approved via change management\n4. Assess the scope of affected customers\n**Resolution:** Revert incorrect classification; reprocess affected bills; communicate with affected customers.",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0052": {
+    "text": "; reprocess affected bills; communicate with affected customers. ### 4. Overage Charge Calculation Error\n**Description:** The overage (excess usage) charge calculation has a bug, applying per-unit charges that are higher than contractually agreed overage rates.\n**Indicators:** Overage rates don't match contract; specific calculation formula produces incorrect results at certain usage levels; affects customers who exceed base plan limits.\n**Investigation Steps:**\n1. Compare billed overage rate with contractual rate\n2. Test overage calculation formula with known inputs",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0053": {
+    "text": "ctual rate\n2. Test overage calculation formula with known inputs 3. Check for recent changes to overage calculation logic\n4. Verify if rounding/precision errors contribute\n**Resolution:** Fix calculation logic; reprocess overage charges; issue credits.",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0054": {
+    "text": "Fix calculation logic; reprocess overage charges; issue credits. ### 5. Third-Party / Premium Service Charges Not Excluded\n**Description:** Third-party or premium service charges (e.g., content subscriptions, premium SMS) are being counted toward the plan usage when they should be billed separately, causing the combined total to breach the SLA cap.\n**Indicators:** SLA cap comparison includes third-party charges; contract specifies cap applies only to core services; premium services billed through same account.\n**Investigation Steps:**",
+    "metadata": {
+      "chunk_index": 9,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0055": {
+    "text": "m services billed through same account.\n**Investigation Steps:** 1. Break down charges by service type (core vs. premium vs. third-party)\n2. Review contract language on what's included in the cap\n3. Check billing system's treatment of third-party charges\n**Resolution:** Separate third-party charges from SLA cap calculation; adjust bill accordingly.",
+    "metadata": {
+      "chunk_index": 10,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0056": {
+    "text": "party charges from SLA cap calculation; adjust bill accordingly. ## Severity Assessment\n- **Revenue Impact:** MEDIUM \u2014 Overcharges require refund; undercharges mean revenue leakage\n- **Regulatory Risk:** HIGH \u2014 SLA violations can trigger regulatory penalties, especially for government/enterprise contracts\n- **Customer Impact:** HIGH \u2014 Breach of contractual terms damages trust; enterprise customers may invoke penalty clauses",
+    "metadata": {
+      "chunk_index": 11,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0057": {
+    "text": "s damages trust; enterprise customers may invoke penalty clauses ## SLA Penalty Calculation\nPer standard telecom SLA frameworks:\n- **Category A (Core Service):** Penalty = (breach amount) \u00d7 penalty multiplier (typically 2x\u20135x)\n- **Category B (Support/Quality):** Service credit = monthly charge \u00d7 downtime percentage\n- Penalty caps typically at 30% of monthly contract value",
+    "metadata": {
+      "chunk_index": 12,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0058": {
+    "text": "entage\n- Penalty caps typically at 30% of monthly contract value ## Reference Standards\n- ETSI GS NFV-REL 001 \u2014 Network service reliability requirements\n- ITU-T E.860 \u2014 SLA framework for telecom services\n- 3GPP TS 32.240 Section 8 \u2014 Charging architecture SLA compliance\n- TRAI Quality of Service regulations\n- FCC \u2014 Service quality and billing obligations",
+    "metadata": {
+      "chunk_index": 13,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0059": {
+    "text": "vice regulations\n- FCC \u2014 Service quality and billing obligations ## Recommended Actions\n1. Immediately verify customer's contract terms and billing cap\n2. Compare actual charges against contractual threshold\n3. Identify root cause: configuration error vs. usage reclassification vs. calculation error\n4. Issue corrective billing and penalties/credits as per contract terms\n5. Conduct root cause fix to prevent recurrence\n6. Notify account management team for relationship preservation\n7. File compliance report if regulatory reporting threshold is triggered",
+    "metadata": {
+      "chunk_index": 14,
+      "total_chunks": 15,
+      "source": "sla_breach_playbook.md"
+    }
+  },
+  "c0060": {
+    "text": "# Telecom Billing Architecture Overview\n\n## CDR (Call Detail Record) Processing Pipeline\n\n### What is a CDR?\nA Call Detail Record (CDR) is a data record produced by telephone exchanges, VoIP systems, or other telecommunications equipment. Each CDR contains metadata about a telecommunications transaction: who called whom, when, for how long, and through which network elements.\n\n### CDR Processing Pipeline Stages",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0061": {
+    "text": "ough which network elements.\n\n### CDR Processing Pipeline Stages #### Stage 1: Collection\nNetwork elements (switches, routers, GGSN/PGW nodes) generate raw CDR files. These are collected by mediation devices at regular intervals (typically every 5-15 minutes).",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0062": {
+    "text": "ion devices at regular intervals (typically every 5-15 minutes). #### Stage 2: Mediation\nThe mediation layer:\n- Normalizes CDR formats from different network elements\n- Performs deduplication to remove duplicate records\n- Validates mandatory fields (timestamp, MSISDN, duration, data volume)\n- Enriches records with additional metadata (cell tower location, service type)\n- Filters test/internal calls",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0063": {
+    "text": "cell tower location, service type)\n- Filters test/internal calls #### Stage 3: Rating\nThe rating engine:\n- Maps each CDR to the customer's active tariff plan\n- Calculates charges based on usage type, duration, volume, time-of-day\n- Applies discounts, bundles, promotions\n- Handles overage calculations\n- Produces rated CDRs with monetary amounts",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0064": {
+    "text": "overage calculations\n- Produces rated CDRs with monetary amounts #### Stage 4: Billing\nThe billing system:\n- Aggregates rated CDRs per customer per billing cycle\n- Applies recurring charges (monthly plan fees, equipment charges)\n- Calculates taxes and regulatory fees\n- Generates invoice\n- Posts to accounts receivable",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0065": {
+    "text": "gulatory fees\n- Generates invoice\n- Posts to accounts receivable #### Stage 5: Revenue Assurance\nRevenue assurance systems:\n- Reconcile CDR counts between network and billing (should match \u226599.9%)\n- Identify billing leakage (unbilled usage)\n- Detect overbilling patterns\n- Monitor KPIs: billing completeness, accuracy, timeliness\n\n## Common Billing Anomaly Categories\n\n### 1. Revenue Leakage Anomalies\n- Zero-billing: Active services generating $0 charges\n- Missing CDRs: Usage occurred but CDR not captured\n- Underrating: CDR rated below correct tariff",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0066": {
+    "text": "t CDR not captured\n- Underrating: CDR rated below correct tariff ### 2. Overbilling Anomalies\n- Duplicate charges: Same usage billed multiple times\n- Overrating: CDR rated above correct tariff\n- Ghost charges: Charges for unused/inactive services\n\n### 3. Service Quality Anomalies\n- SLA breaches: Service metrics below guaranteed thresholds\n- Usage spikes: Abnormal usage patterns indicating fraud or system error\n- CDR processing failures: Pipeline failures causing data loss\n\n## Key Performance Indicators (KPIs)",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0067": {
+    "text": "failures causing data loss\n\n## Key Performance Indicators (KPIs) | KPI | Target | Description |\n|-----|--------|-------------|\n| Billing Accuracy | \u226599.5% | Percentage of correctly rated transactions |\n| CDR Processing Rate | \u226599.9% | Percentage of CDRs successfully processed |\n| Revenue Leakage Rate | <0.5% | Revenue lost due to billing errors |\n| Bill Cycle Timeliness | 100% | Bills generated on schedule |\n| Dispute Rate | <0.1% | Customer billing disputes as percentage of total bills |\n\n## Regulatory Framework",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0068": {
+    "text": "disputes as percentage of total bills |\n\n## Regulatory Framework ### FCC (United States)\n- Truth-in-Billing rules (47 CFR \u00a7 64.2401): Clear, non-misleading billing\n- Anti-cramming rules: Prohibit unauthorized third-party charges\n- Bill shock rules: Notification requirements for exceeding plan limits\n\n### TRAI (India)\n- Metering and Billing accuracy: \u226599.5%\n- Maximum permissible billing error: 0.1%\n- Customer right to itemized billing\n\n### EU\n- Roaming Regulation (EU 531/2012): Rate caps for roaming\n- BEREC billing guidelines: Transparent charging practices",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 9,
+      "source": "telecom_billing_overview.md"
+    }
+  },
+  "c0069": {
+    "text": "# Usage Spike Anomaly \u2014 RCA Playbook\n\n## Overview\nUsage spikes occur when a customer's data, voice, or messaging usage suddenly increases by an order of magnitude (10x+) compared to their historical baseline. Not all spikes are anomalous \u2014 some represent legitimate changes in behavior.\n\n## Common Root Causes",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0070": {
+    "text": "represent legitimate changes in behavior.\n\n## Common Root Causes ### 1. Fraudulent SIM Cloning / Account Compromise\n**Description:** The customer's SIM has been cloned or account credentials compromised, allowing unauthorized usage under their account.\n**Indicators:** Sudden 10x+ usage spike; usage from unusual geographic locations; concurrent usage sessions from different cell towers; customer reports not making those calls.\n**Investigation Steps:**\n1. Check usage location data \u2014 is it consistent with customer's profile?",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0071": {
+    "text": "usage location data \u2014 is it consistent with customer's profile? 2. Look for concurrent sessions from different locations\n3. Verify SIM IMEI history for changes\n4. Cross-reference with fraud detection alerts\n**Resolution:** Suspend account; issue replacement SIM; reverse fraudulent charges; file fraud report.",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0072": {
+    "text": "replacement SIM; reverse fraudulent charges; file fraud report. ### 2. Device Malware / Background Data Consumption\n**Description:** Customer's device has malware or a malfunctioning app that generates excessive background data usage.\n**Indicators:** High data usage but normal voice/SMS; usage pattern is continuous (24/7) rather than burst; customer unaware of excessive usage.\n**Investigation Steps:**\n1. Analyze usage pattern \u2014 is it continuous or burst?\n2. Check if data usage is upload-heavy (malware indicator)\n3. Verify if customer recently installed new apps",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0073": {
+    "text": "are indicator)\n3. Verify if customer recently installed new apps **Resolution:** Advise customer on device security; apply retroactive data cap if plan allows; consider goodwill credit.",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0074": {
+    "text": "y retroactive data cap if plan allows; consider goodwill credit. ### 3. Roaming Without Data Cap Awareness\n**Description:** Customer traveling internationally incurs massive roaming data charges without realizing their plan does not include international data.\n**Indicators:** Usage spike coincides with roaming events; high per-MB charge rates; geographic change in cell tower data.\n**Investigation Steps:**\n1. Check roaming events in CDR data\n2. Verify customer's plan roaming provisions\n3. Check if roaming rate notification SMS was sent",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0075": {
+    "text": "ng provisions\n3. Check if roaming rate notification SMS was sent **Resolution:** Apply roaming rate cap if applicable; issue bill shock credit per regulatory requirements; advise on roaming plans.",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0076": {
+    "text": "ock credit per regulatory requirements; advise on roaming plans. ### 4. Metering / Rating Error\n**Description:** A rating engine bug multiplies usage quantities by an incorrect factor, making normal usage appear as a spike.\n**Indicators:** Multiple customers on same plan show similar spike pattern; spike is exactly Nx normal (round multiplier); resolved after rating engine patch.\n**Investigation Steps:**\n1. Check if spike affects multiple customers on the same plan\n2. Verify recent rating engine configuration changes\n3. Compare raw CDR usage quantities with rated amounts",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0077": {
+    "text": "n changes\n3. Compare raw CDR usage quantities with rated amounts **Resolution:** Correct rating engine; reprocess affected CDRs; issue corrective billing.",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0078": {
+    "text": "ating engine; reprocess affected CDRs; issue corrective billing. ### 5. Legitimate Behavior Change\n**Description:** Customer genuinely changed their usage pattern (e.g., work from home, streaming habits, new household members).\n**Indicators:** Spike is sustained over multiple days; usage types are diverse; no suspicious location changes.\n**Investigation Steps:**\n1. Check if usage pattern is sustained or one-time\n2. Verify usage diversity (is it one type or multiple?)\n3. Compare with similar customer segments",
+    "metadata": {
+      "chunk_index": 9,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0079": {
+    "text": "one type or multiple?)\n3. Compare with similar customer segments **Resolution:** No corrective action needed; may recommend plan upgrade; update baseline for future detection.",
+    "metadata": {
+      "chunk_index": 10,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0080": {
+    "text": "ay recommend plan upgrade; update baseline for future detection. ## Severity Assessment\n- **Revenue Impact:** VARIABLE \u2014 legitimate spikes generate revenue; fraudulent spikes require reversal\n- **Regulatory Risk:** MEDIUM \u2014 bill shock regulations require proactive notification\n- **Customer Impact:** HIGH \u2014 unexpected large bills cause significant customer dissatisfaction",
+    "metadata": {
+      "chunk_index": 11,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0081": {
+    "text": "nexpected large bills cause significant customer dissatisfaction ## Reference Standards\n- 3GPP TS 32.240 \u2014 Usage metering and rating accuracy\n- EU Roaming Regulation (EU 531/2012) \u2014 Bill shock protection\n- FCC Bill Shock rules \u2014 notification requirements\n- TRAI \u2014 Maximum billing threshold guidelines",
+    "metadata": {
+      "chunk_index": 12,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0082": {
+    "text": "ation requirements\n- TRAI \u2014 Maximum billing threshold guidelines ## Recommended Actions\n1. Cross-reference with fraud detection system\n2. Check usage location and pattern for legitimacy indicators\n3. Verify rating engine accuracy for affected plan\n4. If fraudulent: suspend and reverse; if legitimate: recommend plan upgrade\n5. Ensure bill shock notification was sent per regulatory requirements",
+    "metadata": {
+      "chunk_index": 13,
+      "total_chunks": 14,
+      "source": "usage_spike_playbook.md"
+    }
+  },
+  "c0083": {
+    "text": "# Zero-Billing Anomaly \u2014 RCA Playbook\n\n## Overview\nZero-billing events occur when an active customer's billing record shows $0 charges despite having active services. This is a critical revenue assurance issue.\n\n## Common Root Causes",
+    "metadata": {
+      "chunk_index": 0,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0084": {
+    "text": "is is a critical revenue assurance issue.\n\n## Common Root Causes ### 1. CDR Ingestion Pipeline Timeout\n**Description:** The CDR (Call Detail Record) processing pipeline times out during the batch processing window, resulting in zero-rated billing records.\n**Indicators:** Multiple zero-billing records appearing in the same billing cycle; correlation with batch processing timestamps.\n**Investigation Steps:**\n1. Check CDR pipeline health logs for the affected billing cycle\n2. Verify batch processing window completion status",
+    "metadata": {
+      "chunk_index": 1,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0085": {
+    "text": "illing cycle\n2. Verify batch processing window completion status 3. Cross-reference with network element CDR exports\n**Resolution:** Trigger CDR reprocessing for affected accounts; verify pipeline health.",
+    "metadata": {
+      "chunk_index": 2,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0086": {
+    "text": "CDR reprocessing for affected accounts; verify pipeline health. ### 2. Provisioning System Mismatch\n**Description:** Customer was provisioned for services but the billing system was not updated. The service activation event did not propagate to the billing platform.\n**Indicators:** Customer has active services in CRM but billing record shows no usage.\n**Investigation Steps:**\n1. Compare CRM service status with billing system records\n2. Check provisioning event queue for failed/stuck messages\n3. Verify service activation date vs. billing cycle start date",
+    "metadata": {
+      "chunk_index": 3,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0087": {
+    "text": "s\n3. Verify service activation date vs. billing cycle start date **Resolution:** Resync provisioning system with billing; issue corrective bill.",
+    "metadata": {
+      "chunk_index": 4,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0088": {
+    "text": "Resync provisioning system with billing; issue corrective bill. ### 3. Rating Engine Configuration Error\n**Description:** The rating engine has an incorrect tariff plan configuration, rating certain service usage at $0.\n**Indicators:** Specific service type always rated at $0; pattern across multiple customers on same plan.\n**Investigation Steps:**\n1. Review tariff plan configuration for affected service type\n2. Compare with approved rate card\n3. Check recent configuration changes to rating engine\n**Resolution:** Correct tariff configuration; reprocess affected CDRs.",
+    "metadata": {
+      "chunk_index": 5,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0089": {
+    "text": "lution:** Correct tariff configuration; reprocess affected CDRs. ### 4. Billing Cycle Boundary Error\n**Description:** CDRs fall between two billing cycles due to timezone or boundary calculation errors, resulting in records not being picked up by either cycle.\n**Indicators:** Zero billing at cycle boundaries; usage appears in next cycle's records.\n**Investigation Steps:**\n1. Check CDR timestamps vs. billing cycle boundaries\n2. Verify timezone handling in CDR processor\n3. Look for duplicate billing in adjacent cycles",
+    "metadata": {
+      "chunk_index": 6,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0090": {
+    "text": "n CDR processor\n3. Look for duplicate billing in adjacent cycles **Resolution:** Adjust billing cycle boundary logic; reprocess missed CDRs.",
+    "metadata": {
+      "chunk_index": 7,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0091": {
+    "text": "n:** Adjust billing cycle boundary logic; reprocess missed CDRs. ## Severity Assessment\n- **Revenue Impact:** HIGH \u2014 Direct revenue leakage per affected account\n- **Regulatory Risk:** MEDIUM \u2014 May violate billing accuracy SLA requirements (typically \u226599.5%)\n- **Customer Impact:** LOW (customer benefits from zero billing) but HIGH for provider revenue\n\n## Reference Standards\n- 3GPP TS 32.240 Section 5.2 \u2014 CDR processing and timeout handling\n- ETSI billing accuracy requirements \u2014 minimum 99.5% accuracy threshold\n- ITU-T E.800 \u2014 Quality of service metrics for billing",
+    "metadata": {
+      "chunk_index": 8,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  },
+  "c0092": {
+    "text": "threshold\n- ITU-T E.800 \u2014 Quality of service metrics for billing ## Recommended Actions\n1. Trigger CDR reprocessing for all affected accounts\n2. Verify CDR pipeline end-to-end health\n3. Issue corrective billing statements\n4. Add monitoring alert for zero-billing anomaly rate exceeding 0.1%",
+    "metadata": {
+      "chunk_index": 9,
+      "total_chunks": 10,
+      "source": "zero_billing_playbook.md"
+    }
+  }
+}

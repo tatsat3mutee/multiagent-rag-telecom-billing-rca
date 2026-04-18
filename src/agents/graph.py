@@ -14,6 +14,7 @@ from src.agents.state import AgentState
 from src.agents.investigator import investigator_node
 from src.agents.reasoner import reasoner_node
 from src.agents.reporter import reporter_node
+from src.agents.critic import critic_node, should_revise
 from config import TOP_K
 
 
@@ -63,6 +64,7 @@ def build_graph() -> StateGraph:
     workflow.add_node("investigator", investigator_node)
     workflow.add_node("broaden_query", broaden_query_node)
     workflow.add_node("reasoner", reasoner_node)
+    workflow.add_node("critic", critic_node)
     workflow.add_node("reporter", reporter_node)
 
     # Set entry point
@@ -81,8 +83,19 @@ def build_graph() -> StateGraph:
     # Broaden query always goes to reasoner
     workflow.add_edge("broaden_query", "reasoner")
 
-    # Reasoner → Reporter → END
-    workflow.add_edge("reasoner", "reporter")
+    # Reasoner → Critic
+    workflow.add_edge("reasoner", "critic")
+
+    # Critic either loops back to broaden_query (one revise) or proceeds to reporter
+    workflow.add_conditional_edges(
+        "critic",
+        should_revise,
+        {
+            "revise": "broaden_query",
+            "proceed": "reporter",
+        },
+    )
+
     workflow.add_edge("reporter", END)
 
     return workflow.compile()

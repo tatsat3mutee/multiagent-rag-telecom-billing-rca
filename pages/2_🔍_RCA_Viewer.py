@@ -48,6 +48,7 @@ with st.sidebar:
     st.page_link("pages/1_📊_Upload_Detect.py", label="📊  Upload & Detect")
     st.page_link("pages/2_🔍_RCA_Viewer.py", label="🔍  RCA Viewer")
     st.page_link("pages/3_📚_Knowledge_Base.py", label="📚  Knowledge Base")
+    st.page_link("pages/4_📈_Live_Monitoring.py", label="📈  Live Monitoring")
     st.markdown("---")
     st.caption("MTech Thesis — Tatsat Pandey | 2026")
 
@@ -166,6 +167,21 @@ if anomaly_options:
                 if rca:
                     st.success(f"RCA generated in {elapsed:.0f}ms")
 
+                    # Log to SQLite for live monitoring dashboard
+                    try:
+                        from src.utils.inference_log import log_inference
+                        log_inference(
+                            anomaly_id=rca.get("anomaly_id", anomaly_record.get("account_id", "N/A")),
+                            anomaly_type=anomaly_record.get("anomaly_type", "unknown"),
+                            severity=rca.get("severity", "N/A"),
+                            root_cause=rca.get("root_cause", "N/A"),
+                            confidence=anomaly_record.get("confidence", 0.0),
+                            latency_ms=elapsed,
+                            source="ui_single",
+                        )
+                    except Exception:
+                        pass
+
                     st.markdown("---")
                     st.markdown("## 📋 RCA Report")
 
@@ -264,6 +280,19 @@ if anomaly_options:
                         "Root Cause": rca.get("root_cause", "N/A")[:100],
                         "Latency": f"{result.get('latency_ms', 0):.0f}ms",
                     })
+                    try:
+                        from src.utils.inference_log import log_inference
+                        log_inference(
+                            anomaly_id=record["account_id"],
+                            anomaly_type=record["anomaly_type"],
+                            severity=rca.get("severity", "N/A"),
+                            root_cause=rca.get("root_cause", "N/A"),
+                            confidence=record.get("confidence", 0.0),
+                            latency_ms=float(result.get("latency_ms", 0)),
+                            source="ui_batch",
+                        )
+                    except Exception:
+                        pass
                 except Exception as e:
                     batch_results.append({
                         "Account": record["account_id"],

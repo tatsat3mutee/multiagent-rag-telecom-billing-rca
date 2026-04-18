@@ -4,21 +4,28 @@ Covers anomaly detection, RAG retrieval quality, and RCA output quality.
 """
 import json
 import numpy as np
+import sys
 from typing import List, Dict
 from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config import GROUND_TRUTH_DIR
 
 
 def load_ground_truth() -> List[dict]:
-    """Load ground truth RCA documents."""
-    gt_path = GROUND_TRUTH_DIR / "ground_truth_rca.json"
-    if not gt_path.exists():
-        raise FileNotFoundError(f"Ground truth not found at {gt_path}")
-    with open(gt_path, "r") as f:
-        return json.load(f)
+    """Load ground truth RCA documents.
+
+    Prefers the expanded 60-item file when present; falls back to the original
+    15-item file for backward compatibility.
+    """
+    for name in ("ground_truth_rca_60.json", "ground_truth_rca.json"):
+        gt_path = GROUND_TRUTH_DIR / name
+        if gt_path.exists():
+            with open(gt_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    raise FileNotFoundError(
+        f"No ground truth file found under {GROUND_TRUTH_DIR}"
+    )
 
 
 # ── Anomaly Detection Metrics ──
@@ -137,13 +144,22 @@ def anomaly_type_match(predicted_type: str, ground_truth_type: str) -> bool:
 
 # ── Comprehensive Evaluation ──
 
-def evaluate_pipeline_results(results: List[dict], ground_truths: List[dict] = None) -> dict:
+def evaluate_pipeline_results(
+    results: List[dict],
+    ground_truths: List[dict] = None,
+    run_judge: bool = False,
+    judge_kwargs: dict = None,
+) -> dict:
     """
     Evaluate a batch of pipeline results against ground truth.
 
     Args:
         results: List of pipeline outputs from run_pipeline()
         ground_truths: Optional list of ground truth RCA documents
+        run_judge: If True, call LLM-as-Judge + faithfulness + answer-relevancy
+            (requires GROQ_API_KEY or KIMI_API_KEY). Adds latency + cost.
+        judge_kwargs: Passed through to llm_judge.judge_batch (e.g.,
+            {"run_likert": True, "run_faithfulness": True, "run_relevancy": False}).
     """
     if ground_truths is None:
         try:
@@ -151,10 +167,16 @@ def evaluate_pipeline_results(results: List[dict], ground_truths: List[dict] = N
         except FileNotFoundError:
             ground_truths = []
 
-    # Build ground truth lookup
-    gt_lookup = {}
+    # Build ground truth lookups. Do NOT flatten by type (would drop 55/60);
+    # keep a type -> list and an id -> record map.
+    gt_by_type: Dict[str, List[dict]] = {}
+    gt_by_id: Dict[str, dict] = {}
     for gt in ground_truths:
-        gt_lookup[gt["anomaly_type"]] = gt
+        gt_by_type.setdefault(gt["anomaly_type"], []).append(gt)
+        if "anomaly_id" in gt:
+            gt_by_id[gt["anomaly_id"]] = gt
+    # Back-compat alias used by the judge (type -> any one record for that type).
+    gt_lookup = {t: rows[0] for t, rows in gt_by_type.items()}
 
     metrics = {
         "total_processed": len(results),
@@ -177,25 +199,57 @@ def evaluate_pipeline_results(results: List[dict], ground_truths: List[dict] = N
 
     metrics["anomaly_type_accuracy"] = type_matches / max(total_with_type, 1)
 
-    # RCA quality against ground truth
+    # RCA quality against ground truth. For each prediction:
+    #   1. If the prediction carries a ground-truth id, compare against that row.
+    #   2. Else compare against every GT row of the same anomaly_type and take
+    #      the MAX score (charitable match). This is standard for open-ended
+    #      multi-reference evaluation (cf. multi-reference BLEU/ROUGE).
     if ground_truths:
-        hypotheses = []
-        references = []
+        hypotheses: List[str] = []
+        references_per_hyp: List[List[str]] = []
         for r in results:
             rca = r.get("rca_report", {})
             anomaly_type = r.get("anomaly_data", {}).get("anomaly_type", "")
-            if anomaly_type in gt_lookup:
-                hypotheses.append(rca.get("root_cause", ""))
-                references.append(gt_lookup[anomaly_type].get("root_cause", ""))
+            gt_id = r.get("anomaly_data", {}).get("ground_truth_id") or rca.get("ground_truth_id")
+            if gt_id and gt_id in gt_by_id:
+                refs = [gt_by_id[gt_id].get("root_cause", "")]
+            else:
+                refs = [g.get("root_cause", "") for g in gt_by_type.get(anomaly_type, [])]
+            if not refs:
+                continue
+            hypotheses.append(rca.get("root_cause", ""))
+            references_per_hyp.append([ref for ref in refs if ref])
 
         if hypotheses:
-            # ROUGE-L
-            rouge_scores = [compute_rouge_l(h, r) for h, r in zip(hypotheses, references)]
-            metrics["rouge_l_f1"] = np.mean([s["fmeasure"] for s in rouge_scores])
+            # ROUGE-L: per hypothesis, take max F over its reference set
+            rouge_f_per_item = []
+            for hyp, refs in zip(hypotheses, references_per_hyp):
+                best = 0.0
+                for ref in refs:
+                    best = max(best, compute_rouge_l(hyp, ref)["fmeasure"])
+                rouge_f_per_item.append(best)
+            metrics["rouge_l_f1"] = float(np.mean(rouge_f_per_item))
+            metrics["rouge_l_f1_per_item"] = rouge_f_per_item
 
-            # BERTScore
-            bert_scores = compute_bert_score(hypotheses, references)
-            metrics["bert_score_f1"] = bert_scores["f1"]
+            # BERTScore: compute per ref set and keep max per hypothesis
+            bert_f_per_item: List[float] = []
+            for hyp, refs in zip(hypotheses, references_per_hyp):
+                if not refs:
+                    bert_f_per_item.append(0.0)
+                    continue
+                bs = compute_bert_score([hyp] * len(refs), refs)
+                bert_f_per_item.append(float(np.max(bs.get("individual_f1", [bs["f1"]]))))
+            metrics["bert_score_f1"] = float(np.mean(bert_f_per_item)) if bert_f_per_item else 0.0
+            metrics["bert_score_f1_per_item"] = bert_f_per_item
+
+    # LLM-as-Judge + RAGAS-style metrics (opt-in; costs API calls)
+    if run_judge and gt_lookup:
+        try:
+            from src.evaluation.llm_judge import judge_batch, aggregate_judge_scores
+            judge_batch(results, gt_lookup, **(judge_kwargs or {}))
+            metrics.update(aggregate_judge_scores(results))
+        except Exception as e:
+            print(f"[evaluate] judge pass failed: {e}")
 
     return metrics
 
@@ -219,5 +273,15 @@ def print_evaluation_report(metrics: dict):
         print(f"    ROUGE-L F1:           {metrics.get('rouge_l_f1', 0):.4f}")
     if "bert_score_f1" in metrics:
         print(f"    BERTScore F1:         {metrics.get('bert_score_f1', 0):.4f}")
+    if "faithfulness_mean" in metrics:
+        print(f"\n  RAGAS-style (judge={metrics.get('judge_backend','?')}):")
+        print(f"    Faithfulness:         {metrics.get('faithfulness_mean', 0):.4f}")
+        print(f"    Answer Relevancy:     {metrics.get('answer_relevancy_mean', 0):.4f}")
+    if "judge_correctness_mean" in metrics:
+        print(f"\n  LLM-as-Judge (1-5 Likert):")
+        print(f"    Correctness:          {metrics.get('judge_correctness_mean', 0):.2f}")
+        print(f"    Groundedness:         {metrics.get('judge_groundedness_mean', 0):.2f}")
+        print(f"    Actionability:        {metrics.get('judge_actionability_mean', 0):.2f}")
+        print(f"    Completeness:         {metrics.get('judge_completeness_mean', 0):.2f}")
 
     print("\n" + "=" * 60)

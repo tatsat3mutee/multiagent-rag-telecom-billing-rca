@@ -481,11 +481,11 @@ python -c "from src.rag.knowledge_base import build_knowledge_base; build_knowle
 ```
 
 ### LLM Mode (Already Configured)
-The system uses **Groq API** (Llama 3.3 70B Versatile) for LLM inference.
-Ensure your `.env` file contains a valid `GROQ_API_KEY`.
+The system uses the **OpenAI API** (gpt-4o-mini generator, gpt-4o judge).
+Ensure your `.env` file contains a valid `OPENAI_API_KEY`.
 ```bash
-# Get a free API key at https://console.groq.com
-# Add to .env: GROQ_API_KEY=your_key_here
+# Get API key at https://platform.openai.com
+# Add to .env: OPENAI_API_KEY=sk-...
 python run_pipeline.py
 ```
 

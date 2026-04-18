@@ -117,14 +117,14 @@
 | **Purpose** | Fast LLM inference via cloud API; free tier available |
 | **Model** | `llama-3.3-70b-versatile` |
 | **API** | REST API compatible with OpenAI client format |
-| **Speed** | ~1-5s per call (cloud inference) |
-| **Install** | `pip install langchain-groq` |
+| **Speed** | ~1-3s per call (OpenAI API) |
+| **Install** | `pip install openai` |
 
 **Setup:**
 ```bash
-# Get free API key at https://console.groq.com
+# Get API key at https://platform.openai.com
 # Add to .env file:
-GROQ_API_KEY=your_key_here
+OPENAI_API_KEY=sk-...
 ```
 
 ### 2.6 Anomaly Detection — scikit-learn

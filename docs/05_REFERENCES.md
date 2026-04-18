@@ -59,7 +59,7 @@
     *(Llama 3 — primary LLM used in the system)*
 
 15. **Jiang, A. Q., Sablayrolles, A., Mensch, A., et al.** (2023). Mistral 7B. *arXiv:2310.06825*.  
-    *(Mistral 7B — referenced open-source LLM; project uses Llama 3.3 70B via Groq)*
+    *(Mistral 7B — referenced open-source LLM; project uses OpenAI gpt-4o-mini)*
 
 16. **Reimers, N., & Gurevych, I.** (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-Networks. *EMNLP 2019*.  
     *(sentence-transformers library — embedding model foundation)*

@@ -34,12 +34,58 @@ CHUNK_OVERLAP = 64
 # ── Retrieval ──
 TOP_K = 5
 
-# ── LLM (Groq) ──
+# ── LLM (Groq preferred, Kimi fallback — both via OpenAI-compatible API) ──
+#
+# Priority order (auto-detected at import):
+#   1. If GROQ_API_KEY is set    → use Groq    (free tier, fast)
+#   2. Elif KIMI_API_KEY is set  → use Kimi K2 (~₹17 / full ablation)
+#   3. Elif LLM_API_KEY is set   → use whatever LLM_BASE_URL points at
+#
+# Explicit overrides (LLM_API_KEY + LLM_BASE_URL + LLM_MODEL) always win.
+
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / ".env")
+
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-LLM_MODEL = "llama-3.3-70b-versatile"
+KIMI_API_KEY = os.environ.get("KIMI_API_KEY", "")
+
+# Explicit overrides
+_explicit_key = os.environ.get("LLM_API_KEY", "")
+_explicit_base = os.environ.get("LLM_BASE_URL", "")
+_explicit_model = os.environ.get("LLM_MODEL", "")
+
+if _explicit_key:
+    LLM_API_KEY = _explicit_key
+    LLM_BASE_URL = _explicit_base
+    LLM_MODEL = _explicit_model or "kimi-k2-0711-preview"
+    LLM_PROVIDER = "custom"
+elif GROQ_API_KEY:
+    LLM_API_KEY = GROQ_API_KEY
+    LLM_BASE_URL = "https://api.groq.com/openai/v1"
+    LLM_MODEL = _explicit_model or "llama-3.3-70b-versatile"
+    LLM_PROVIDER = "groq"
+elif KIMI_API_KEY:
+    LLM_API_KEY = KIMI_API_KEY
+    LLM_BASE_URL = "https://api.moonshot.ai/v1"
+    LLM_MODEL = _explicit_model or "kimi-k2-0711-preview"
+    LLM_PROVIDER = "kimi"
+else:
+    LLM_API_KEY = ""
+    LLM_BASE_URL = ""
+    LLM_MODEL = _explicit_model or "kimi-k2-0711-preview"
+    LLM_PROVIDER = "none"
+
 LLM_TEMPERATURE = 0.1
+
+# ── Judge LLM (evaluation) ──
+# Defaults to the same provider/model as the generator. Optionally override
+# JUDGE_API_KEY + JUDGE_BASE_URL + JUDGE_MODEL to use a different family
+# (cross-family judge = stronger bias-mitigation story, e.g. Groq gen + Kimi judge).
+JUDGE_API_KEY = os.environ.get("JUDGE_API_KEY", LLM_API_KEY)
+JUDGE_BASE_URL = os.environ.get("JUDGE_BASE_URL", LLM_BASE_URL)
+JUDGE_MODEL = os.environ.get("JUDGE_MODEL", LLM_MODEL)
+JUDGE_TEMPERATURE = 0.0  # deterministic scoring
+JUDGE_FALLBACK_MODEL = LLM_MODEL
 
 # ── Ablation Study Configurations ──
 ABLATION_CONFIGS = {
@@ -64,6 +110,13 @@ ABLATION_CONFIGS = {
         "use_agents": True,
         "single_agent": False,
         "description": "Config D: Multi-Agent + RAG (proposed system)",
+    },
+    "graph_rag": {
+        "use_rag": True,
+        "use_agents": True,
+        "single_agent": False,
+        "use_graph_rag": True,
+        "description": "Config E: Multi-Agent + GraphRAG (headline novelty)",
     },
 }
 
