@@ -257,7 +257,7 @@ with st.sidebar:
     st.markdown("---")
     st.caption("**Owner**  ·  Tatsat Pandey")
     st.caption("**Program**  ·  MTech DSE · 2026")
-    st.caption("**Lifecycle**  ·  `production-ready`")
+    st.caption("**Lifecycle**  ·  `research prototype`")
 
 # ────────────────────────────────────────────────────────────────────
 # Runtime data
@@ -306,8 +306,8 @@ st.markdown(f"""
     <h1 class="bs-hero-title">Multi-Agent RAG for Telecom Billing RCA</h1>
     <p class="bs-hero-subtitle">
         Autonomous diagnosis of billing anomalies — usage spikes, zero-billing, duplicate charges,
-        CDR failures, SLA breaches — using a LangGraph-orchestrated pipeline of three specialized
-        LLM agents grounded by a curated telecom knowledge base.
+        CDR failures, SLA breaches — using a LangGraph-orchestrated pipeline of four specialized
+        LLM agents grounded by vector retrieval and GraphRAG over a curated telecom knowledge base.
     </p>
     <div class="bs-hero-pills">
         {status_pill}
@@ -348,12 +348,12 @@ cards = [
     {"icon": "🧠", "kind": "Component · Agent", "title": "Reasoner",
      "desc": "Synthesizes retrieved context with anomaly features to produce structured root-cause hypotheses with explicit evidence chains and confidence scoring.",
      "meta": "owner: tatsat · stage: reasoning"},
-    {"icon": "📋", "kind": "Component · Agent", "title": "Reporter",
-     "desc": "Validates and emits machine-readable JSON RCA reports with severity, recommended actions, and audit metadata for downstream ticketing.",
-     "meta": "owner: tatsat · stage: output"},
     {"icon": "🛡️", "kind": "Component · Agent", "title": "Critic",
      "desc": "Independent validator that re-checks JSON schema, refusal patterns, and evidence-grounding before the report is published.",
      "meta": "owner: tatsat · stage: validation"},
+    {"icon": "📋", "kind": "Component · Agent", "title": "Reporter",
+     "desc": "Validates and emits machine-readable JSON RCA reports with severity, recommended actions, and audit metadata for downstream ticketing.",
+     "meta": "owner: tatsat · stage: output"},
 ]
 cols = st.columns(4)
 for col, c in zip(cols, cards):
@@ -431,15 +431,15 @@ with tab_about:
 
     **Solution.** A multi-agent RAG system that autonomously investigates each anomaly:
     an Investigator retrieves grounding context from a curated KB, a Reasoner synthesizes hypotheses
-    with explicit evidence chains, and a Reporter emits validated JSON RCA reports. A Critic node
-    independently re-checks the output before publication.
+    with explicit evidence chains, a Critic checks grounding and consistency, and a Reporter emits
+    validated JSON RCA reports.
 
-    **Evaluation.** Four-config ablation (no-RAG, RAG-only, single-agent+RAG, multi-agent+RAG)
-    across 15 anomalies (3 per type × 5 types), scored on ROUGE-L, BERTScore, type-accuracy, and
-    LLM-as-Judge. Statistical significance via paired-bootstrap + Wilcoxon. The proposed multi-agent
-    configuration delivers a **+407% ROUGE-L improvement (p<0.001)** over the no-RAG baseline.
+    **Evaluation.** Five-config ablation (no-RAG, RAG-only, single-agent+RAG, multi-agent+RAG,
+    multi-agent+GraphRAG), scored on ROUGE-L, BERTScore, type-accuracy, RAGAS-style metrics, and
+    LLM-as-Judge. Statistical significance is assessed via bootstrap confidence intervals,
+    paired-bootstrap, and Wilcoxon signed-rank testing.
 
-    **Reproducibility.** Open-source, single-provider OpenAI-compatible LLM (Groq/Kimi),
+    **Reproducibility.** Configurable OpenAI-compatible LLM backend (Groq/Kimi/custom),
     file-backed MLflow tracking, deterministic seeded test set, and 87-test pytest suite.
     """)
 

@@ -2,7 +2,7 @@
 ## Multi-Agent RAG System for Autonomous Root Cause Analysis of Billing Anomalies in Telecom Networks
 
 **Author:** Tatsat Pandey | MTech DSE | Semester 4  
-**Last Updated:** March 26, 2026
+**Last Updated:** April 26, 2026
 
 ---
 
@@ -28,12 +28,12 @@ A **complete, working end-to-end system** that:
 2. **Injects** 5 types of billing anomalies (zero-billing, duplicate charges, usage spikes, CDR failures, SLA breaches)
 3. **Detects** anomalies using IsolationForest and DBSCAN
 4. **Retrieves** relevant domain knowledge from a ChromaDB-backed RAG knowledge base
-5. **Analyzes** each anomaly through a 3-agent LangGraph pipeline (Investigator → Reasoner → Reporter)
+5. **Analyzes** each anomaly through a 4-agent LangGraph pipeline (Investigator → Reasoner → Critic → Reporter)
 6. **Generates** structured JSON RCA reports with root cause, evidence, severity, and recommended actions
 7. **Tracks** all experiments via MLflow
 8. **Presents** everything via a Streamlit dashboard
 
-**Key Achievement:** The pipeline uses Groq cloud API (free tier) with Llama 3.3 70B for rich LLM-generated analysis, achieving fast inference at $0 cost. Without LLM access, it uses intelligent domain-specific fallback templates so the system always produces output.
+**Key Achievement:** The pipeline uses a configurable OpenAI-compatible LLM backend with Groq preferred, Kimi fallback, and custom provider support. Without LLM access, it uses intelligent domain-specific fallback templates so tests and demos remain offline-safe.
 
 ---
 
@@ -66,20 +66,25 @@ RAGML/
 │   │   ├── __init__.py
 │   │   ├── chunker.py                  ← Recursive text splitting with overlap
 │   │   ├── embedder.py                 ← sentence-transformers embedding wrapper
-│   │   └── knowledge_base.py           ← ChromaDB indexing + retrieval
+│   │   ├── knowledge_base.py           ← ChromaDB indexing + retrieval
+│   │   ├── hybrid_retriever.py         ← BM25 + dense retrieval with RRF
+│   │   └── graph_rag.py                ← GraphRAG entity-relation retrieval
 │   │
 │   ├── agents/                         ← Layer 4: Multi-Agent Orchestration
 │   │   ├── __init__.py
 │   │   ├── state.py                    ← TypedDict state schema (AgentState)
 │   │   ├── prompts.py                  ← All prompt templates (system + user)
 │   │   ├── investigator.py             ← Investigator Agent (retrieval)
-│   │   ├── reasoner.py                 ← Reasoning Agent (hypothesis generation)
+│   │   ├── reasoner.py                 ← Reasoner Agent (hypothesis generation)
+│   │   ├── critic.py                   ← Critic Agent (grounding review + revision)
 │   │   ├── reporter.py                 ← Reporter Agent (structured RCA output)
 │   │   └── graph.py                    ← LangGraph StateGraph wiring + runner
 │   │
 │   ├── evaluation/                     ← Evaluation Framework
 │   │   ├── __init__.py
-│   │   └── metrics.py                  ← ROUGE-L, BERTScore, detection metrics
+│   │   ├── metrics.py                  ← ROUGE-L, BERTScore, detection metrics
+│   │   ├── llm_judge.py                ← LLM-as-Judge evaluation
+│   │   └── stats.py                    ← Bootstrap CI, paired bootstrap, Wilcoxon
 │   │
 │   ├── mlflow_tracking.py              ← MLflow integration helpers
 │   └── cli.py                          ← Command-line interface
@@ -257,11 +262,11 @@ RAGML/
 ### 5-Layer Architecture
 ```
 Layer 5: Presentation    │ Streamlit Dashboard + MLflow UI
-Layer 4: Agent Orchestr. │ LangGraph StateGraph (Investigator → Reasoner → Reporter)
+Layer 4: Agent Orchestr. │ LangGraph StateGraph (Investigator → Reasoner → Critic → Reporter)
 Layer 3: RAG Engine      │ ChromaDB + sentence-transformers + PyMuPDF
 Layer 2: Detection       │ scikit-learn (IsolationForest / DBSCAN)
 Layer 1: Ingestion       │ Pandas + NumPy (CSV loading, feature engineering)
-Layer 0: LLM Backend     │ Groq (Llama 3.3 70B Versatile)
+Layer 0: LLM Backend     │ Groq → Kimi → custom OpenAI-compatible API
 ```
 
 ### Agent Pipeline Data Flow
@@ -277,9 +282,15 @@ Input: Anomaly Record
          │ [conditional: if < 2 docs → broaden_query → retry]
          ▼
 ┌─────────────────┐
-│  REASONING       │  1. Reads anomaly data + retrieved documents
+│  REASONER        │  1. Reads anomaly data + retrieved documents
 │  AGENT           │  2. Generates structured root cause hypothesis
 │                  │  3. Provides reasoning chain + evidence citations
+└────────┬────────┘
+         ▼
+┌─────────────────┐
+│  CRITIC          │  1. Reviews grounding and consistency
+│  AGENT           │  2. Flags hallucination risk or missing evidence
+│                  │  3. Allows one bounded revision loop
 └────────┬────────┘
          ▼
 ┌─────────────────┐
@@ -338,6 +349,7 @@ STEP 5: Run Agent Pipeline (10 anomalies)
 ├── For each anomaly:
 │   ├── Investigator: query KB → retrieve 5 docs
 │   ├── Reasoner: generate hypothesis from anomaly + docs
+│   ├── Critic: review grounding and request at most one revision
 │   └── Reporter: produce JSON RCA report
 ├── All 10 completed successfully
 └── 100% anomaly type accuracy, avg latency ~55ms (fallback mode)
@@ -412,9 +424,10 @@ STEP 6: Evaluate
 | 8 | ChromaDB knowledge base | ✅ Complete | 93 chunks, persistent |
 | 9 | 8 RCA playbooks | ✅ Complete | Domain knowledge corpus |
 | 10 | Investigator Agent | ✅ Complete | RAG retrieval + LLM query refinement |
-| 11 | Reasoning Agent | ✅ Complete | Hypothesis generation + fallback |
-| 12 | Reporter Agent | ✅ Complete | JSON RCA report generation |
-| 13 | LangGraph StateGraph | ✅ Complete | Conditional routing included |
+| 11 | Reasoner Agent | ✅ Complete | Hypothesis generation + fallback |
+| 12 | Critic Agent | ✅ Complete | Grounding review + bounded revision |
+| 13 | Reporter Agent | ✅ Complete | JSON RCA report generation |
+| 14 | LangGraph StateGraph | ✅ Complete | Conditional routing + critic loop included |
 | 14 | Ground truth RCA (15 docs) | ✅ Complete | For evaluation |
 | 15 | Evaluation metrics | ✅ Complete | ROUGE-L, BERTScore, detection metrics |
 | 16 | MLflow integration | ✅ Complete | Logs detection + pipeline + eval |
@@ -481,11 +494,19 @@ python -c "from src.rag.knowledge_base import build_knowledge_base; build_knowle
 ```
 
 ### LLM Mode (Already Configured)
-The system uses the **OpenAI API** (gpt-4o-mini generator, gpt-4o judge).
-Ensure your `.env` file contains a valid `OPENAI_API_KEY`.
+The system uses a **configurable OpenAI-compatible LLM backend**. Groq is preferred, Kimi is the fallback, and a custom endpoint can be supplied explicitly.
+Ensure your `.env` file contains at least one valid provider key.
 ```bash
-# Get API key at https://platform.openai.com
-# Add to .env: OPENAI_API_KEY=sk-...
+# Preferred
+GROQ_API_KEY=gsk_...
+
+# Fallback
+KIMI_API_KEY=...
+
+# Optional custom endpoint
+LLM_API_KEY=...
+LLM_BASE_URL=https://example.com/v1
+LLM_MODEL=your-model-name
 python run_pipeline.py
 ```
 
@@ -497,11 +518,12 @@ python run_pipeline.py
 
 1. **~~Ollama Integration~~** ✅ DONE — Migrated to Groq API (Llama 3.3 70B), achieving fast cloud inference with real LLM reasoning for rich, contextual RCA reports.
 
-2. **Ablation Study** — Run the 4 configurations and compare:
+2. **Ablation Study** — Run the 5 configurations and compare:
    - Config A: No RAG (direct LLM generation)
    - Config B: RAG only (retrieve + generate, no agents)
    - Config C: Single agent + RAG
-   - Config D: Multi-agent + RAG (proposed system)
+  - Config D: Multi-agent + RAG (proposed system)
+  - Config E: Multi-agent + GraphRAG (headline novelty)
 
 3. **EDA Notebooks** — Create `notebooks/01_eda_ibm.ipynb` with:
    - Distribution plots for billing features
@@ -598,7 +620,7 @@ python run_pipeline.py
 
 2. **Architecture Walkthrough** (3 min)
    - Show the 5-layer architecture diagram
-   - Explain the 3-agent pipeline: "Each agent has a specialized role"
+  - Explain the 4-agent pipeline: "Each agent has a specialized role"
    - "Why multi-agent? Separation of concerns → better at each task"
 
 3. **Live Demo** (7 min)
@@ -612,10 +634,10 @@ python run_pipeline.py
 4. **Results** (2 min)
    - Detection: ROC-AUC = 0.877
    - 100% anomaly type accuracy in RCA
-   - "Estimated 40x reduction in initial triage time"
+  - "Projected reduction in initial triage effort; production MTTR impact requires deployment data"
 
 5. **Conclusion** (1 min)
-   - "Fully open-source, $0 cost, runs on a laptop"
+  - "Reproducible local data/retrieval stack with configurable cloud LLM backend"
    - "Applicable to any telecom operator globally"
 
 ### Anticipated Q&A

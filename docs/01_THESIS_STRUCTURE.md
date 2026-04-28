@@ -39,7 +39,7 @@
 
 ### 1.6 Scope and Limitations
 - Batch anomaly triage (not real-time CDR streaming)
-- Open-source LLMs only (no proprietary API dependency)
+- Configurable OpenAI-compatible LLM backend: Groq preferred, Kimi fallback, and custom provider support; the dissertation reports the exact provider used for each experimental run
 - Evaluation on synthetic + public datasets (no proprietary CDR data)
 
 ### 1.7 Thesis Organization
@@ -123,18 +123,25 @@
 - Retrieval strategy: top-k semantic search with re-ranking
 
 ### 3.6 Multi-Agent Design
-- **Investigator Agent:** Receives anomaly context → queries RAG store → retrieves top-k relevant documents
-- **Reasoning Agent:** Receives anomaly context + retrieved docs → generates structured root cause hypothesis
-- **Reporter Agent:** Receives hypothesis + evidence → produces JSON-schema-validated RCA report
-- LangGraph StateGraph definition: nodes, edges, state schema, conditional routing
+- **Investigator Agent:** Receives anomaly context → queries RAG/GraphRAG store → retrieves top-k relevant documents
+- **Reasoner Agent:** Receives anomaly context + retrieved docs → generates structured root cause hypothesis
+- **Critic Agent:** Reviews the hypothesis for grounding, evidence use, hallucination risk, and optionally requests one revision
+- **Reporter Agent:** Receives final hypothesis + evidence → produces JSON-schema-validated RCA report
+- LangGraph StateGraph definition: nodes, edges, state schema, conditional routing, and bounded critic revision loop
 
-### 3.7 Prompt Engineering
+### 3.7 GraphRAG Layer
+- Entity and relation extraction from telecom RCA playbooks
+- NetworkX graph construction and persistence
+- Multi-hop graph traversal for complex RCA queries
+- Comparison against flat vector retrieval in Config E
+
+### 3.8 Prompt Engineering
 - System prompts for each agent
 - Few-shot examples
 - Output format constraints (JSON schema)
 - Grounding instructions to prevent hallucination
 
-### 3.8 Experiment Tracking
+### 3.9 Experiment Tracking
 - MLflow integration: parameters, metrics, artifacts logging
 - Run comparison and reproducibility
 
@@ -202,11 +209,12 @@
 - Simulated MTTR reduction
 
 ### 5.4 Ablation Study
-- Configuration 1: No RAG (baseline)
-- Configuration 2: RAG Only (single LLM call)
-- Configuration 3: Single Agent + RAG
-- Configuration 4: Multi-Agent + RAG (proposed)
-- Statistical significance testing (Wilcoxon signed-rank test)
+- Configuration A: No RAG baseline
+- Configuration B: RAG-only single LLM call
+- Configuration C: Single Agent + RAG
+- Configuration D: Multi-Agent + RAG (proposed system)
+- Configuration E: Multi-Agent + GraphRAG (headline novelty)
+- Statistical significance testing (Wilcoxon signed-rank test, paired bootstrap, bootstrap confidence intervals)
 - Results table with confidence intervals
 
 ### 5.5 Qualitative Analysis
@@ -245,7 +253,7 @@
 1. Novel multi-agent RAG architecture for telecom billing RCA
 2. Curated open-source telecom billing knowledge corpus
 3. Empirical evidence: multi-agent > single-agent for domain-specific RCA
-4. Open-source end-to-end deployable system
+4. Reproducible end-to-end deployable system with configurable LLM provider support
 
 ### 7.2 Answers to Research Questions
 - RQ1, RQ2, RQ3 answered with evidence

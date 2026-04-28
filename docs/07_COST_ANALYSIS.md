@@ -25,7 +25,7 @@
 
 | Tool | License | Cost | Commercial Alternative | Alternative Cost |
 |------|---------|------|----------------------|------------------|
-| **Groq API** (LLM serving) | Free tier | $0 | OpenAI API | $0.50–$15/1M tokens |
+| **Groq API** (LLM serving) | Free tier | $0 | Commercial LLM API | $0.50–$15/1M tokens |
 | **Llama 3.3 70B** (via Groq) | Meta Llama License | $0 | GPT-4 | $30/1M tokens |
 | **LangGraph** | MIT | $0 | LangSmith (managed) | $39/month |
 | **ChromaDB** | Apache 2.0 | $0 | Pinecone | $70+/month |

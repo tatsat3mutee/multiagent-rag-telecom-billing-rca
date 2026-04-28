@@ -48,13 +48,13 @@ Outputs are free-text. A structured schema (`{cause_system, contributing_factors
 Even at 60 ground-truth items, per-type sample size is 12. Paired-bootstrap CIs are wide (typically ±0.08–0.15 on ROUGE-L). Statements about configuration ranking (A vs B vs C vs D) are supported by Wilcoxon and paired-bootstrap p-values on the joint metric, but **per-type claims are not statistically supported**.
 
 ### 3.2 ROUGE-L and BERTScore are lexical/semantic surface metrics
-They reward overlap, not correctness. This is why we added **LLM-as-Judge** (correctness / groundedness / actionability / completeness on a 1–5 Likert) plus **RAGAS-style faithfulness + answer_relevancy**. The judge is `gpt-4o-mini` by default with Groq Llama-3.3-70B as fallback; the `backend` tag is persisted in results for transparent bias reporting.
+They reward overlap, not correctness. This is why we added **LLM-as-Judge** (correctness / groundedness / actionability / completeness on a 1-5 Likert) plus **RAGAS-style faithfulness + answer_relevancy**. The judge uses the configured OpenAI-compatible backend by default and can be separated from the generator through `JUDGE_API_KEY`, `JUDGE_BASE_URL`, and `JUDGE_MODEL`; the backend/model tag is persisted in results for transparent bias reporting.
 
 ### 3.3 LLM-as-Judge bias
 The judge is itself an LLM; it may prefer responses stylistically similar to its own outputs. Mitigations applied:
 - Temperature = 0.0 (deterministic)
 - Explicit rubric per axis with anchor examples in prompt
-- Judge model ≠ generator model (mini vs 70B)
+- Judge model can be configured independently from the generator model
 - Fallback disclosure: every judged sample carries its `backend` tag so readers can stratify
 
 ### 3.4 No human evaluation
@@ -63,10 +63,10 @@ Phase 1 does not include human-rated RCA quality. This is called out as the sing
 ## 4. System Limitations
 
 ### 4.1 Free-tier LLM constraints
-Groq free tier is capped at ~30 RPM for Llama-3.3-70B-Versatile. The token-bucket limiter (`src/utils/rate_limit.py`) is set conservatively at 25 RPM. Ablation runs (4 configs × 60 items × up to 2 LLM calls = ~480 requests) therefore take ~20 minutes minimum wall-clock. This is a deployment constraint, not a methodological one, but it bounds how many experimental configurations can be run per day.
+Provider limits vary. Groq free tier is capped at approximately 30 RPM for Llama-3.3-70B-Versatile, while Kimi/custom endpoints have their own quotas and pricing. Ablation runs (5 configs x 60 items x multiple LLM calls) can therefore take significant wall-clock time and may require pacing. This is a deployment constraint, not a methodological one, but it bounds how many experimental configurations can be run per day.
 
 ### 4.2 Single-region deployment
-Everything runs locally (ChromaDB on disk, Groq API over internet). No distributed retrieval, no sharded vector store, no failover. Production scale-out is out of scope.
+Everything runs locally except the configured LLM provider call (ChromaDB on disk, local MLflow/SQLite, cloud or custom LLM endpoint over internet). No distributed retrieval, no sharded vector store, no failover. Production scale-out is out of scope.
 
 ### 4.3 Python 3.14 + Pydantic v1
 The project runs on Python 3.14; several LangChain sub-packages still emit Pydantic v1 deprecation warnings. These are non-blocking but will require a migration to Pydantic v2 before long-term support.

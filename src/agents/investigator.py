@@ -1,6 +1,13 @@
 """
 Investigator Agent — retrieves relevant documents from the RAG knowledge base.
+
+Retrieval mode is selected via the environment variable USE_GRAPH_RAG:
+  unset / 0  → ChromaDB dense vector retrieval (default, stable)
+  1          → GraphRAG entity-relation graph retrieval (Config E)
+              Requires: data/graph_rag/kb_graph.pkl
+              Build with: python scripts/build_graph_rag.py --offline
 """
+import os
 import time
 from pathlib import Path
 import sys
@@ -50,6 +57,40 @@ def investigator_node(state: AgentState) -> AgentState:
         search_query = query_map.get(anomaly_type,
                                       f"{anomaly_type} billing anomaly root cause analysis telecom")
 
+    # ── GraphRAG retrieval (Config E) ──────────────────────────────────────────
+    if os.environ.get("USE_GRAPH_RAG", "").lower() in ("1", "true"):
+        try:
+            from src.rag.graph_rag import GraphRAGRetriever, GRAPHRAG_DIR, GRAPH_PATH
+            if GRAPH_PATH.exists():
+                gr = GraphRAGRetriever.load(GRAPHRAG_DIR)
+                graph_results = gr.retrieve(search_query, k=TOP_K)
+                if graph_results:
+                    retrieved_docs = [
+                        {
+                            "text": r["text"],
+                            "source": r["source"],
+                            # graph_score is a node+edge support count (typically 0–10+);
+                            # normalise to [0, 1] for compatibility with the rest of the pipeline.
+                            "relevance_score": min(r.get("graph_score", 1.0) / 10.0, 1.0),
+                            "metadata": {
+                                "source": r["source"],
+                                "chunk_id": r.get("chunk_id", ""),
+                                "retrieval_mode": "graph_rag",
+                            },
+                        }
+                        for r in graph_results
+                    ]
+                    state["retrieval_query"] = search_query
+                    state["retrieved_docs"] = retrieved_docs
+                    state["retrieval_count"] = len(retrieved_docs)
+                    state["pipeline_status"] = "investigated"
+                    return state
+                print("[GraphRAG] zero results — falling back to vector retrieval")
+            else:
+                print("[GraphRAG] graph not built — falling back to vector retrieval")
+        except Exception as _e:
+            print(f"[GraphRAG] error ({_e}) — falling back to vector retrieval")
+    # ── Default: ChromaDB dense retrieval ──────────────────────────────────────
     # Query knowledge base
     kb = KnowledgeBase()
     results = kb.search(search_query, n_results=TOP_K)

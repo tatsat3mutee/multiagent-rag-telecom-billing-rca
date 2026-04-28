@@ -14,31 +14,26 @@ The **headline novelty** for the viva is **GraphRAG over telecom playbooks** ([s
 
 ---
 
-## 1. Why OpenAI (why we removed Groq)
+## 1. LLM Backend Strategy
 
 ### The decision
-Generator + judge both moved to OpenAI models.
-- **Generator:** `gpt-4o-mini` — set via `LLM_MODEL` env var or [config.py](config.py#L41)
-- **Judge:** `gpt-4o` — set via `JUDGE_MODEL` env var or [config.py](config.py#L48)
+The runtime uses a configurable OpenAI-compatible LLM backend instead of hard-coding a single vendor.
+- **Preferred generator:** Groq `llama-3.3-70b-versatile` when `GROQ_API_KEY` is set.
+- **Fallback generator:** Kimi `kimi-k2-0711-preview` when `KIMI_API_KEY` is set.
+- **Custom generator:** any OpenAI-compatible endpoint through `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`.
+- **Judge:** defaults to the generator provider/model, but can be independently configured through `JUDGE_API_KEY`, `JUDGE_BASE_URL`, and `JUDGE_MODEL`.
 
-### Why we removed Groq
+### Why this is defensible
 | # | Reason | Consequence for the thesis |
 |---|---|---|
-| 1 | **Same-model bias.** The generator and the judge were both Llama 3.3 70B. LLM-as-Judge has a well-documented self-preference bias (Zheng et al., 2023, *"Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena"*). When judge = generator, the evaluation is not defensible. | Viva-blocking. Reviewers will ask why the judge isn't independent. |
-| 2 | **Free-tier rate limiting.** Groq's free tier is ~30 RPM. Ablation = 5 configs × 60 GT × ~2 LLM calls ≈ 600 requests → the 93-100% 429-failure rate documented in `ablation_output*.txt` directly contaminated the first-round numbers. | Prior ablation results were unreliable (mostly rate-limit errors, not model failures). |
-| 3 | **No JSON-mode guarantees.** Groq's `response_format={"type":"json_object"}` compatibility was fragile on Llama 3.3 through LangChain wrappers; the judge prompts and critic prompts needed hard JSON. | Parsing error rate was elevated, again skewing metrics. |
-| 4 | **Model tiering for bias mitigation.** OpenAI lets us use a **weaker model for generation** (`gpt-4o-mini`, ~$0.15/$0.60 per 1M tokens) and a **stronger, different-family model for judging** (`gpt-4o`). This is the standard bias-mitigation pattern. | Judge is independent in both tier and size — defensible. |
-| 5 | **Tokenizer / context reliability.** OpenAI's client retries, timeouts, and structured outputs are first-class and battle-tested. | Less engineering effort spent on retry logic; more on research. |
-| 6 | **Cost for 60-item ablation.** Rough estimate at gpt-4o-mini + gpt-4o: generation ~300 calls × ~1k tokens ≈ $0.50; judging ~240 calls × ~2k tokens at gpt-4o ≈ $3. **Total well under $5/run.** Affordable for re-runs during thesis iteration. | Trade money for reliability and defensibility — the right call for thesis. |
-
-### What we kept from Groq
-- `langchain-groq` remains in [requirements.txt](requirements.txt#L12) as an **optional fallback** so any collaborator using a Groq key still gets a working system.
-- The judge module [src/evaluation/llm_judge.py](src/evaluation/llm_judge.py#L46-L56) auto-detects `OPENAI_API_KEY` first, then `GROQ_API_KEY`, then `"none"` — pipelines degrade gracefully, tests stay offline-safe.
-- The legacy `GROQ_API_KEY` alias in [config.py](config.py#L44) prevents any lingering import from crashing.
+| 1 | **Reproducibility.** The project records the configured provider/model for experimental runs instead of claiming one fixed backend. | Reported numbers can be traced to the exact runtime configuration. |
+| 2 | **Cost control.** Groq remains the fastest low-cost/default option for development, while Kimi/custom endpoints allow reruns if rate limits appear. | Final ablation can be rerun without rewriting code. |
+| 3 | **Bias mitigation.** The judge can be separated from the generator by setting independent judge environment variables. | LLM-as-Judge bias is mitigated and disclosed. |
+| 4 | **Offline safety.** Fallback templates keep tests and demos from failing when no LLM key is present. | The core pipeline remains demonstrable without external access. |
 
 ### Things to disclose in the viva
-- LLM-as-Judge bias is **mitigated, not eliminated.** Every judge result carries a `backend` field ([src/evaluation/llm_judge.py](src/evaluation/llm_judge.py#L46)) so readers can filter by model if needed.
-- OpenAI is a **closed-source commercial API.** The project no longer fits the "entirely open-source" framing in the original abstract. Abstract updated to "widely-adopted open tooling" at [docs/02_ABSTRACT.md](docs/02_ABSTRACT.md#L17).
+- LLM-as-Judge bias is **mitigated, not eliminated.** Use an independent judge provider/model for final reported numbers if possible.
+- The retrieval, anomaly detection, evaluation, and UI stack is reproducible locally; LLM inference depends on the configured cloud or custom provider.
 
 ---
 
@@ -84,15 +79,15 @@ Generator + judge both moved to OpenAI models.
 | [run_pipeline.py](run_pipeline.py) | CLI end-to-end runner: download → inject → train → index → evaluate | |
 | [run_ablation.py](run_ablation.py) | Ablation harness for configs A/B/C/D (and E = GraphRAG) | Token-bucket paced, bootstrap CI reported |
 | [test_pipeline.py](test_pipeline.py) | Integration sanity test on a few anomalies | |
-| [test_llm.py](test_llm.py) | 5-second smoke test — verifies OpenAI key + model reachable | |
+| [test_llm.py](test_llm.py) | 5-second smoke test — verifies configured LLM provider + model reachable | |
 | [scripts/build_graph_rag.py](scripts/build_graph_rag.py) | Build the NetworkX graph from playbooks | `--offline` for heuristic-only |
 | [scripts/plot_results.py](scripts/plot_results.py) | Matplotlib bars + judge radar for the deck | |
 
 ### 3.2 Configuration
 | Config | Location | Default |
 |---|---|---|
-| Generator model | [config.py](config.py#L41) | `gpt-4o-mini` (env `LLM_MODEL`) |
-| Judge model | [config.py](config.py#L48) | `gpt-4o` (env `JUDGE_MODEL`) |
+| Generator model | [config.py](config.py) | Groq `llama-3.3-70b-versatile`, Kimi `kimi-k2-0711-preview`, or env `LLM_MODEL` |
+| Judge model | [config.py](config.py) | Defaults to generator model; override with env `JUDGE_MODEL` |
 | Rate-limit RPM | [src/utils/rate_limit.py](src/utils/rate_limit.py#L70) | 450 (env `LLM_RATE_PER_MIN`) |
 | Chunk size / overlap | [config.py](config.py#L32-L33) | 512 / 64 |
 | Top-K retrieval | [config.py](config.py#L36) | 5 |
@@ -242,13 +237,17 @@ pip install -r requirements.txt
 
 # 4. Configure LLM
 #    Create .env in the repo root with:
-#      OPENAI_API_KEY=sk-...
-#      LLM_MODEL=gpt-4o-mini           (optional override)
-#      JUDGE_MODEL=gpt-4o              (optional override)
-#      LLM_RATE_PER_MIN=450            (optional override)
+#      GROQ_API_KEY=gsk_...            (preferred)
+#      KIMI_API_KEY=...                (fallback)
+#      LLM_API_KEY=...                 (optional custom endpoint)
+#      LLM_BASE_URL=https://.../v1     (required for custom endpoint)
+#      LLM_MODEL=your-model            (optional override)
+#      JUDGE_API_KEY=...               (optional independent judge)
+#      JUDGE_BASE_URL=https://.../v1   (optional independent judge)
+#      JUDGE_MODEL=your-judge-model    (optional independent judge)
 ```
 
-> **Cost control tip:** override with `LLM_MODEL=gpt-4o-mini` and `JUDGE_MODEL=gpt-4o-mini` during development; only switch the judge to `gpt-4o` for the final viva run.
+> **Cost control tip:** use Groq for fast development runs, then configure an independent judge provider/model for final reported evaluation if available.
 
 ### 6.2 Verify LLM works
 
@@ -285,7 +284,7 @@ With coverage:
 **Full LLM-extracted graph** (recommended for viva — richer graph, ~50-100 edges):
 ```powershell
 .\.venv\Scripts\python.exe scripts\build_graph_rag.py
-# cost: ~$0.10-0.30 at gpt-4o-mini
+# cost depends on the configured provider/model
 ```
 
 ### 6.6 Train the detector end-to-end
@@ -305,10 +304,10 @@ This:
 
 ```powershell
 # All 5 configs (A, B, C, D, E=GraphRAG), 60 anomalies, with LLM judge
-.\.venv\Scripts\python.exe run_ablation.py --n 60 --configs A B C D E --judge
+.\.venv\Scripts\python.exe run_ablation.py --n 60 --configs A,B,C,D,E --judge
 
 # Quick 10-item smoke run without judge
-.\.venv\Scripts\python.exe run_ablation.py --n 10 --configs A D
+.\.venv\Scripts\python.exe run_ablation.py --n 10 --configs A,D
 ```
 Output: `ablation_results.json` at repo root + printed significance table.
 
@@ -336,7 +335,7 @@ UI pages:
 
 ```powershell
 docker build -t telecom-rca .
-docker run -p 8501:8501 -e OPENAI_API_KEY=$env:OPENAI_API_KEY telecom-rca
+docker run -p 8501:8501 -e GROQ_API_KEY=$env:GROQ_API_KEY telecom-rca
 # Browser: http://localhost:8501
 ```
 Dockerfile at [Dockerfile](Dockerfile).
@@ -360,9 +359,9 @@ If the raw dir is empty, the loader prints a helpful message and exits cleanly.
 | Area | Status | Evidence |
 |---|---|---|
 | Code compiles & imports clean | ✅ | 87/87 tests pass in ~6s |
-| Generator ↔ Judge independence | ✅ | gpt-4o-mini vs gpt-4o at [config.py](config.py#L41-L48); `backend` field persisted per judged item |
+| Generator ↔ Judge independence | ✅ | Optional independent judge through `JUDGE_API_KEY`, `JUDGE_BASE_URL`, and `JUDGE_MODEL`; backend/model fields are persisted per judged item |
 | Ground-truth expanded to 60 | ✅ | [data/eval/ground_truth_rca/ground_truth_rca_60.json](data/eval/ground_truth_rca/ground_truth_rca_60.json), 12 per type, unique IDs |
-| Rate-limit pacing | ✅ | Token bucket at 450 RPM default; safe for gpt-4o-mini tier-1 |
+| Rate-limit pacing | ✅ | Token bucket utility available; tune rate limit to the selected provider tier |
 | Significance testing | ✅ | Bootstrap CI + paired-bootstrap + Wilcoxon in [src/evaluation/stats.py](src/evaluation/stats.py) |
 | GraphRAG (headline novelty) | ✅ | [src/rag/graph_rag.py](src/rag/graph_rag.py) + [scripts/build_graph_rag.py](scripts/build_graph_rag.py) + 13 tests + config E |
 | Hybrid retrieval | ✅ | BM25+RRF+cross-encoder ([src/rag/hybrid_retriever.py](src/rag/hybrid_retriever.py) + [src/rag/reranker.py](src/rag/reranker.py)) |
@@ -371,15 +370,15 @@ If the raw dir is empty, the loader prints a helpful message and exits cleanly.
 | Limitations doc | ✅ | [docs/08_LIMITATIONS.md](docs/08_LIMITATIONS.md) |
 | Deck diagrams | ✅ | 6 Mermaid sources at [docs/diagrams/README.md](docs/diagrams/README.md) + matplotlib script |
 | Streamlit UI | ✅ | `app.py` + 3 pages; no Groq/ChatGroq references in pages (verified by grep) |
-| Docker | ✅ | [Dockerfile](Dockerfile); pre-downloads embedding model; pass `OPENAI_API_KEY` at runtime |
+| Docker | ✅ | [Dockerfile](Dockerfile); pre-downloads embedding model; pass the selected provider key at runtime |
 | CI | ✅ | [.github/workflows/ci.yml](.github/workflows/ci.yml) — verifies config + runs pytest |
 
 ### 7.2 What needs you to do something (yellow)
 | Item | What to do | Blocker for |
 |---|---|---|
-| Set `OPENAI_API_KEY` | Create `.env` or `$env:OPENAI_API_KEY = "..."` before the first real run | Any LLM-touching command |
+| Set an LLM provider key | Create `.env` with `GROQ_API_KEY`, `KIMI_API_KEY`, or custom `LLM_API_KEY`/`LLM_BASE_URL` before the first real run | Any LLM-touching command |
 | Rebuild GraphRAG with LLM | `python scripts/build_graph_rag.py` (without `--offline`) | Viva-quality graph (offline has only 3 edges) |
-| Run ablation | `python run_ablation.py --n 60 --configs A B C D E --judge` | Final results table in thesis/deck |
+| Run ablation | `python run_ablation.py --n 60 --configs A,B,C,D,E --judge` | Final results table in thesis/deck |
 | Render deck PNGs | `python scripts/plot_results.py` after ablation | Deck figures |
 | Re-index KB | Only needed if playbooks changed | KB drift |
 
@@ -393,16 +392,16 @@ If the raw dir is empty, the loader prints a helpful message and exits cleanly.
 
 ### 7.4 Is the UI ready?
 Yes — with caveats.
-- The Streamlit homepage text was updated to `OpenAI (gpt-4o-mini + gpt-4o judge)` ([app.py](app.py#L222) + L232).
+- The Streamlit homepage reads provider/model dynamically from [config.py](config.py).
 - The three `pages/*.py` files do not contain any Groq/ChatGroq imports (verified).
-- The RCA Viewer calls `run_pipeline()` from [src/agents/graph.py](src/agents/graph.py), which now goes through the OpenAI-backed `call_llm()`.
-- **The UI will throw a clear error at the first LLM call if `OPENAI_API_KEY` is missing.** The error string tells the user what to do. No silent failures.
+- The RCA Viewer calls `run_pipeline()` from [src/agents/graph.py](src/agents/graph.py), which goes through the configured OpenAI-compatible `call_llm()` helper.
+- **The UI will throw a clear error at the first LLM call if no provider key is configured.** The error string tells the user what to do. No silent failures.
 
 ### 7.5 Final readiness verdict
 - **Code readiness for thesis submission:** 9/10. Everything runs; 87 tests green; migration clean; no stale Groq code paths in hot code.
 - **Research novelty for viva:** 8/10. GraphRAG is a real, defensible contribution. Caveat: the graph should be built with LLM extraction (not heuristic) before the viva so the node/edge counts are publication-grade.
 - **Evaluation rigor:** 8/10. Multi-metric + stats + independent judge + 60-item GT. Remaining weakness: N=12 per anomaly type is small, but bootstrap CI is honest about that.
-- **Cost to finish:** ~$5-10 USD in OpenAI credits for one full ablation + GraphRAG build. ~1 evening of execution time including rendering the deck.
+- **Cost to finish:** provider-dependent; Groq/Kimi/custom choices determine final ablation and GraphRAG build cost. Plan one evening of execution time including rendering the deck.
 
 ---
 
@@ -424,7 +423,7 @@ Yes — with caveats.
 | Technique | Reference | Where we use it |
 |---|---|---|
 | RAGAS framework | Es et al., 2023, *"RAGAS: Automated Evaluation of Retrieval Augmented Generation"* | [src/evaluation/llm_judge.py](src/evaluation/llm_judge.py) faithfulness + answer-relevancy |
-| LLM-as-Judge bias | Zheng et al., 2023, *"Judging LLM-as-a-Judge with MT-Bench"* | Motivates gpt-4o-mini → gpt-4o tier split |
+| LLM-as-Judge bias | Zheng et al., 2023, *"Judging LLM-as-a-Judge with MT-Bench"* | Motivates generator/judge separation through independent judge configuration |
 | RRF | Cormack et al., 2009, *"Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods"* | [src/rag/hybrid_retriever.py](src/rag/hybrid_retriever.py#L32) |
 | GraphRAG | Microsoft Research 2024, *"From Local to Global: A Graph RAG Approach to Query-Focused Summarization"* | [src/rag/graph_rag.py](src/rag/graph_rag.py) |
 | IsolationForest | Liu et al., 2008 | [src/detection/detector.py](src/detection/detector.py) |
@@ -439,10 +438,10 @@ Yes — with caveats.
 
 These are the questions you should expect and have a 1-sentence answer ready for:
 
-1. *"Why is your judge independent?"* → Different model tier (gpt-4o-mini gen vs gpt-4o judge), temp=0, backend tag persisted per item, Zheng 2023 mitigation pattern.
+1. *"Why is your judge independent?"* → The judge can be configured separately from the generator, temperature is 0, backend/model tags are persisted per item, and the setup follows the Zheng 2023 bias-mitigation pattern.
 2. *"Is N=60 enough?"* → Per-type N=12; bootstrap CIs are wide and honestly reported; no per-type claims, only joint-metric claims.
 3. *"What's novel here vs plain RAG?"* → GraphRAG over telecom playbooks with 6-relation schema; Critic node with revise-loop; multi-metric evaluation with significance tests — none of which is in the cited telecom-RCA baselines.
-4. *"Why not open-source LLMs?"* → We kept a Groq fallback; removed Groq from the critical path because same-model judging undermines evaluation. Trade-off documented.
+4. *"Why not only open-source LLMs?"* → The local retrieval/evaluation stack is reproducible, while the LLM backend is configurable; final results disclose the exact provider/model used.
 5. *"How do you know the synthetic anomalies aren't contaminating RCA eval?"* → Injection rules operate on tabular features; RCA narratives come from independently-authored playbooks + 60-item GT with diverse realistic failure modes.
 
 ---

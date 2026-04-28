@@ -128,21 +128,21 @@
 |-----|------|---------|-------------|
 | 1 | State schema definition | Define `AgentState` TypedDict: anomaly_data, retrieved_docs, hypothesis, rca_report | `src/agents/state.py` |
 | 2 | Investigator Agent | LangGraph node: receives anomaly → formulates query → retrieves top-k docs from ChromaDB | `src/agents/investigator.py` |
-| 3 | Reasoning Agent | LangGraph node: receives anomaly + docs → generates structured root cause hypothesis | `src/agents/reasoner.py` |
-| 4 | Reporter Agent | LangGraph node: receives hypothesis + evidence → produces JSON-schema-validated RCA | `src/agents/reporter.py` |
-| 5 | Unit tests | Test each agent independently with mock inputs, verify output schema compliance | `tests/test_agents.py` |
+| 3 | Reasoner Agent | LangGraph node: receives anomaly + docs → generates structured root cause hypothesis | `src/agents/reasoner.py` |
+| 4 | Critic Agent | LangGraph node: reviews hypothesis for grounding, evidence use, and hallucination risk | `src/agents/critic.py` |
+| 5 | Reporter Agent | LangGraph node: receives final hypothesis + evidence → produces JSON-schema-validated RCA | `src/agents/reporter.py` |
 
 ### Week 10 — StateGraph Assembly & CLI Pipeline
 
 | Day | Task | Details | Deliverable |
 |-----|------|---------|-------------|
-| 1 | LangGraph StateGraph | Wire Investigator → Reasoner → Reporter as graph nodes with typed edges | `src/agents/graph.py` |
-| 2 | Conditional routing | Add error handling: if retrieval returns < threshold docs, request broader query | Routing logic |
-| 3 | Prompt engineering | Refine system prompts: grounding instructions, output format, few-shot examples | `src/agents/prompts/` |
-| 4 | CLI interface | Command-line tool: input anomaly record → output RCA markdown | `src/cli.py` |
-| 5 | End-to-end test | Run 10 anomaly cases through full pipeline, verify outputs manually | E2E test results log |
+| 1 | Unit tests | Test each agent independently with mock inputs, verify output schema compliance | `tests/test_agents.py` |
+| 2 | LangGraph StateGraph | Wire Investigator → Reasoner → Critic → Reporter as graph nodes with typed edges | `src/agents/graph.py` |
+| 3 | Conditional routing | Add error handling: if retrieval returns < threshold docs, request broader query; allow one critic revision loop | Routing logic |
+| 4 | Prompt engineering | Refine system prompts: grounding instructions, output format, few-shot examples | `src/agents/prompts.py` |
+| 5 | CLI interface + E2E test | Command-line tool: input anomaly record → output RCA JSON/markdown; run 10 anomaly cases through full pipeline | `src/cli.py` + E2E test log |
 
-**Deliverable:** Working 3-agent pipeline (CLI) producing RCA reports.
+**Deliverable:** Working 4-agent pipeline (CLI) producing RCA reports.
 
 **Supervisor Checkpoint M4:** Screen recording of pipeline run (anomaly input → RCA output).
 

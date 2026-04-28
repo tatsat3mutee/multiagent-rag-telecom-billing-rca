@@ -2,7 +2,7 @@
 
 ## A Multi-Agent RAG System for Autonomous Root Cause Analysis of Billing Anomalies in Telecom Networks
 
-**Stack Philosophy:** 100% Open Source — Zero API Cost (Groq Free Tier) — Fully Reproducible
+**Stack Philosophy:** Reproducible local data/retrieval stack, configurable OpenAI-compatible LLM backend, and offline-safe fallbacks for testing.
 
 ---
 
@@ -19,10 +19,7 @@
 │  Layer 4: Agent Orchestration                                    │
 │  ┌──────────────────────────────────────────────────────┐       │
 │  │               LangGraph (StateGraph)                  │       │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │       │
-│  │  │Investi-  │→ │Reasoning │→ │Reporter  │           │       │
-│  │  │gator     │  │Agent     │  │Agent     │           │       │
-│  │  └──────────┘  └──────────┘  └──────────┘           │       │
+│  │  Investigator → Reasoner → Critic → Reporter          │       │
 │  └──────────────────────────────────────────────────────┘       │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 3: RAG Engine                                             │
@@ -43,7 +40,7 @@
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 0: LLM Backend                                            │
 │  ┌──────────────────────────────────────────────────────┐       │
-│  │     Groq API (Llama 3.3 70B Versatile — Cloud)        │       │
+│  │  Groq → Kimi → custom OpenAI-compatible endpoint      │       │
 │  └──────────────────────────────────────────────────────┘       │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -65,7 +62,7 @@
 
 **Usage in project:**
 - `StateGraph` defines the agent execution DAG
-- Each agent (Investigator, Reasoner, Reporter) is a graph node
+- Each agent (Investigator, Reasoner, Critic, Reporter) is a graph node
 - State (anomaly data, retrieved docs, hypothesis, RCA) flows through typed edges
 - Conditional routing handles retrieval failures
 
@@ -109,23 +106,32 @@
 
 **Why this model:** Fast, accurate, runs on CPU, well-benchmarked, widely used in production RAG systems.
 
-### 2.5 LLM Backend — Groq
+### 2.5 LLM Backend — Configurable OpenAI-Compatible Provider
 
 | Property | Value |
 |----------|-------|
-| **Service** | Groq Cloud API |
-| **Purpose** | Fast LLM inference via cloud API; free tier available |
-| **Model** | `llama-3.3-70b-versatile` |
-| **API** | REST API compatible with OpenAI client format |
-| **Speed** | ~1-3s per call (OpenAI API) |
+| **Service** | Groq preferred, Kimi fallback, or explicit custom endpoint |
+| **Purpose** | Fast LLM inference for generation and optional LLM-as-Judge evaluation |
+| **Default Model** | `llama-3.3-70b-versatile` when `GROQ_API_KEY` is set |
+| **API** | OpenAI-compatible REST API |
+| **Speed** | Provider-dependent; Groq is typically fastest on free/low-cost runs |
 | **Install** | `pip install openai` |
 
 **Setup:**
 ```bash
-# Get API key at https://platform.openai.com
-# Add to .env file:
-OPENAI_API_KEY=sk-...
+# Preferred option
+GROQ_API_KEY=gsk_...
+
+# Fallback option
+KIMI_API_KEY=...
+
+# Explicit custom option
+LLM_API_KEY=...
+LLM_BASE_URL=https://example.com/v1
+LLM_MODEL=your-model-name
 ```
+
+The judge can use the same provider as the generator or an independently configured provider through `JUDGE_API_KEY`, `JUDGE_BASE_URL`, and `JUDGE_MODEL`.
 
 ### 2.6 Anomaly Detection — scikit-learn
 
@@ -242,6 +248,8 @@ scikit-learn>=1.3.0
 pymupdf>=1.24.0
 
 # LLM
+openai>=1.40.0
+langchain-openai>=0.2.0
 langchain-groq>=1.0.0
 
 # Tracking & UI
@@ -348,12 +356,15 @@ RAGML/
 │   │   ├── __init__.py
 │   │   ├── chunker.py              # Document chunking pipeline
 │   │   ├── embedder.py             # Embedding generation
-│   │   └── retriever.py            # ChromaDB query interface
+│   │   ├── knowledge_base.py       # ChromaDB query interface
+│   │   ├── hybrid_retriever.py     # BM25 + dense retrieval with RRF
+│   │   └── graph_rag.py            # NetworkX GraphRAG retrieval
 │   ├── agents/
 │   │   ├── __init__.py
 │   │   ├── state.py                # AgentState TypedDict
 │   │   ├── investigator.py         # Investigator Agent
-│   │   ├── reasoner.py             # Reasoning Agent
+│   │   ├── reasoner.py             # Reasoner Agent
+│   │   ├── critic.py               # Critic Agent
 │   │   ├── reporter.py             # Reporter Agent
 │   │   ├── graph.py                # LangGraph StateGraph assembly
 │   │   └── prompts/                # System prompts for each agent

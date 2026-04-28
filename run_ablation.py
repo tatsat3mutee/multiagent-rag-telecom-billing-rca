@@ -1,11 +1,14 @@
 """
-Ablation Study — Compares 4 configurations:
+Ablation Study — Compares 5 configurations:
   Config A: No RAG (direct LLM generation)
   Config B: RAG only (retrieve + generate in single prompt)
   Config C: Single Agent + RAG (one agent does everything)
-  Config D: Multi-Agent + RAG (proposed 3-agent pipeline)
+    Config D: Multi-Agent + RAG (proposed 4-agent pipeline)
+  Config E: Multi-Agent + GraphRAG (headline novelty — graph-traversal retrieval)
+            Requires: data/graph_rag/kb_graph.pkl
+            Build with: python scripts/build_graph_rag.py --offline
 
-Usage: python run_ablation.py [--n N] [--configs A,B,C,D] [--gt]
+Usage: python run_ablation.py [--n N] [--configs A,B,C,D,E] [--gt]
    --n N        limit to N anomalies per type (default 12 when --gt, else 3)
    --configs    subset of configs to run (default A,B,C,D)
    --gt         build test anomalies from the 60-item ground truth
@@ -299,7 +302,7 @@ def run_config_c(anomaly: dict) -> dict:
 # ── Config D: Multi-Agent + RAG (proposed system) ──
 
 def run_config_d(anomaly: dict) -> dict:
-    """Full multi-agent pipeline: Investigator → Reasoner → Reporter."""
+    """Full multi-agent pipeline: Investigator → Reasoner → Critic → Reporter."""
     import time as _time
     from src.agents.graph import run_pipeline
 
@@ -326,6 +329,35 @@ def run_config_d(anomaly: dict) -> dict:
             "retrieved_docs": [],
         }
     result["config"] = "multi_agent_rag"
+    return result
+
+
+def run_config_e(anomaly: dict) -> dict:
+    """Multi-Agent + GraphRAG retrieval (Config E — headline novelty).
+
+    Identical to Config D (full multi-agent pipeline) except the Investigator
+    uses GraphRAG entity-relation graph traversal instead of ChromaDB dense
+    retrieval.  This isolates the contribution of GraphRAG over vector search
+    in an otherwise identical pipeline.
+
+    Requires that the graph has been built first:
+      python scripts/build_graph_rag.py --offline   # fast, heuristic extraction
+      python scripts/build_graph_rag.py             # LLM-based extraction (better)
+    """
+    from src.rag.graph_rag import GRAPH_PATH
+    if not GRAPH_PATH.exists():
+        raise RuntimeError(
+            "GraphRAG graph not built. Run one of:\n"
+            "  python scripts/build_graph_rag.py --offline\n"
+            "  python scripts/build_graph_rag.py\n"
+            f"Expected file: {GRAPH_PATH}"
+        )
+    os.environ["USE_GRAPH_RAG"] = "1"
+    try:
+        result = run_config_d(anomaly)
+    finally:
+        os.environ.pop("USE_GRAPH_RAG", None)
+    result["config"] = "graph_rag"
     return result
 
 
@@ -550,6 +582,7 @@ def run_ablation(test_anomalies: List[dict] = None,
         "B_rag_only": ("Config B: RAG + LLM (single prompt)", run_config_b),
         "C_single_agent_rag": ("Config C: Single Agent + RAG", run_config_c),
         "D_multi_agent_rag": ("Config D: Multi-Agent + RAG [proposed]", run_config_d),
+        "E_graph_rag": ("Config E: Multi-Agent + GraphRAG [headline novelty]", run_config_e),
     }
     if config_keys:
         configs = {k: v for k, v in all_configs.items() if k in config_keys}
@@ -747,7 +780,9 @@ if __name__ == "__main__":
     parser.add_argument("--n", type=int, default=None,
                         help="Limit to N anomalies per type (default: 12 with --gt, 3 without).")
     parser.add_argument("--configs", type=str, default="A,B,C,D",
-                        help="Comma-separated subset of configs: A,B,C,D")
+                        help="Comma-separated subset of configs: A,B,C,D,E "
+                             "(E requires data/graph_rag/kb_graph.pkl — "
+                             "build with: python scripts/build_graph_rag.py --offline)")
     parser.add_argument("--gt", action="store_true",
                         help="Use 60-item ground truth as the test set (per-item GT matching).")
     parser.add_argument("--judge", action="store_true",
@@ -757,6 +792,7 @@ if __name__ == "__main__":
     key_map = {
         "A": "A_no_rag", "B": "B_rag_only",
         "C": "C_single_agent_rag", "D": "D_multi_agent_rag",
+        "E": "E_graph_rag",
     }
     config_keys = [key_map[c.strip().upper()] for c in args.configs.split(",") if c.strip().upper() in key_map]
 
