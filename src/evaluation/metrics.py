@@ -24,7 +24,9 @@ def load_ground_truth() -> List[dict]:
             with open(gt_path, "r", encoding="utf-8") as f:
                 return json.load(f)
     raise FileNotFoundError(
-        f"No ground truth file found under {GROUND_TRUTH_DIR}"
+        f"No ground truth file found under {GROUND_TRUTH_DIR}. "
+        f"Expected ground_truth_rca_60.json or ground_truth_rca.json. "
+        f"Run: python scripts/build_ground_truth.py to generate one."
     )
 
 

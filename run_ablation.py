@@ -59,7 +59,7 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
     with token-bucket pacing + retry on rate limits."""
     if _client is None:
         raise RuntimeError(
-            "No LLM API key set — configure GROQ_API_KEY or KIMI_API_KEY in .env "
+            "No LLM API key set - configure GROQ_API_KEY or KIMI_API_KEY in .env "
             "before running the ablation."
         )
     messages = [
@@ -569,7 +569,7 @@ def run_ablation(test_anomalies: List[dict] = None,
             on each config's results after generation. Requires a configured LLM key.
     """
     print("\n" + "=" * 70)
-    print("  ABLATION STUDY — Multi-Agent RAG System")
+    print("  ABLATION STUDY - Multi-Agent RAG System")
     print(f"  LLM: {LLM_MODEL}")
     print("=" * 70)
 
@@ -603,12 +603,12 @@ def run_ablation(test_anomalies: List[dict] = None,
             print(f"  Processing: {anomaly['account_id']} ({atype})...", end=" ", flush=True)
             try:
                 result = run_fn(anomaly)
-                status = "✓" if result.get("pipeline_status") == "completed" else "✗"
+                status = "OK" if result.get("pipeline_status") == "completed" else "FAIL"
                 latency = result.get("latency_ms", 0)
                 print(f"{status} ({latency:.0f}ms)")
                 results.append(result)
             except Exception as e:
-                print(f"✗ ERROR: {e}")
+                print(f"FAIL ERROR: {e}")
                 results.append({
                     "anomaly_data": anomaly,
                     "rca_report": {"anomaly_type": atype, "root_cause": f"Error: {e}"},
@@ -781,7 +781,7 @@ if __name__ == "__main__":
                         help="Limit to N anomalies per type (default: 12 with --gt, 3 without).")
     parser.add_argument("--configs", type=str, default="A,B,C,D",
                         help="Comma-separated subset of configs: A,B,C,D,E "
-                             "(E requires data/graph_rag/kb_graph.pkl — "
+                             "(E requires data/graph_rag/kb_graph.pkl - "
                              "build with: python scripts/build_graph_rag.py --offline)")
     parser.add_argument("--gt", action="store_true",
                         help="Use 60-item ground truth as the test set (per-item GT matching).")

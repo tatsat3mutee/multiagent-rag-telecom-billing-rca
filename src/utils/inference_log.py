@@ -18,12 +18,19 @@ Table schema:
 """
 from __future__ import annotations
 
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-_DB_PATH = Path(__file__).resolve().parents[2] / "inferences.db"
+_PROJECT_ROOT = os.environ.get("RAGML_PROJECT_ROOT")
+if _PROJECT_ROOT:
+    _DB_PATH = Path(_PROJECT_ROOT) / "inferences.db"
+else:
+    _DB_PATH = Path(__file__).resolve().parents[2] / "inferences.db"
+
+_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS inferences (

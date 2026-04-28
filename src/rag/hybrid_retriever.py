@@ -27,7 +27,7 @@ from typing import List, Dict, Optional, Tuple
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent).replace("\\src\\rag", ""))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config import TOP_K
 
 _TOKEN_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9_-]{2,}")

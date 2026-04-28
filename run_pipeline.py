@@ -110,7 +110,7 @@ def step_5_run_agent_pipeline(detector, df: pd.DataFrame, limit: int = 10):
         result = run_pipeline(record)
         rca = result.get("rca_report", {})
 
-        status = "✓" if result.get("pipeline_status") == "completed" else "✗"
+        status = "OK" if result.get("pipeline_status") == "completed" else "FAIL"
         print(f"{status} ({result.get('latency_ms', 0):.0f}ms)")
 
         results.append(result)
@@ -148,7 +148,7 @@ def step_6_evaluate(results):
 
 def main():
     print("\n" + "=" * 60)
-    print("  TELECOM BILLING RCA — FULL PIPELINE")
+    print("  TELECOM BILLING RCA - FULL PIPELINE")
     print("  Multi-Agent RAG System")
     print("=" * 60)
 
@@ -174,7 +174,7 @@ def main():
 
     elapsed = time.time() - start
     print(f"\n{'=' * 60}")
-    print(f"  PIPELINE COMPLETE — Total time: {elapsed:.1f}s")
+    print(f"  PIPELINE COMPLETE - Total time: {elapsed:.1f}s")
     print(f"{'=' * 60}")
 
     # Save summary
