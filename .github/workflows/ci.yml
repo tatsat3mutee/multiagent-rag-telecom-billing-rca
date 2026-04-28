@@ -29,9 +29,9 @@ jobs:
           ! grep -rn "OLLAMA_BASE_URL\|ChatOllama\|langchain_ollama\|localhost:11434" \
             --include="*.py" . && echo "PASS: No stale Ollama refs"
 
-      - name: Verify config uses OpenAI
+      - name: Verify config loads correctly
         run: |
-          python -c "from config import OPENAI_API_KEY, LLM_MODEL; assert LLM_MODEL.startswith('gpt-'), 'Bad model: ' + LLM_MODEL; print('PASS: Config OK')"
+          python -c "from config import LLM_PROVIDER, LLM_MODEL; print(f'PASS: provider={LLM_PROVIDER} model={LLM_MODEL}')"
 
       - name: Run pytest suite
         run: |
